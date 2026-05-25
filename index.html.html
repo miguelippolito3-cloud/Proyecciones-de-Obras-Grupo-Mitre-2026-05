@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Proyecciones Obras — Grupo Mitre v3</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --bg:#f0f4f8;--card:#fff;--border:#dde3ed;--text:#1e293b;--muted:#64748b;
+  --accent:#2563eb;--green:#16a34a;--red:#dc2626;--amber:#d97706;--blue:#2563eb;
+  --tag-r:rgba(220,38,38,.1);--tag-a:rgba(217,119,6,.1);--tag-g:rgba(22,163,74,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#1e3a5f,#1e40af);padding:16px 28px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:18px;font-weight:700;color:#fff}
+.header p{color:#bfdbfe;font-size:11px;margin-top:2px}
+.rev-badge{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+
+/* FILTERS */
+.filters{background:#fff;border-bottom:1px solid var(--border);padding:10px 28px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:100;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.filter-group{display:flex;align-items:center;gap:6px}
+.filter-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+select{padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--text);background:#fff;cursor:pointer;outline:none}
+select:focus{border-color:var(--accent)}
+.filter-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:rgba(37,99,235,.1);color:var(--accent)}
+.clear-btn{padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--muted);background:#fff;cursor:pointer}
+.clear-btn:hover{background:var(--bg)}
+.toggles-group{display:flex;align-items:center;gap:8px;padding:0 4px;border-left:1px solid var(--border);margin-left:4px}
+.cat-toggle{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;border:2px solid var(--border);cursor:pointer;transition:all .2s;color:var(--muted);background:#f8fafc;user-select:none;line-height:1.3}
+.cat-toggle.on-maq{border-color:#dc2626;color:#dc2626;background:rgba(220,38,38,.08)}
+.cat-toggle.on-mod{border-color:#8b5cf6;color:#8b5cf6;background:rgba(139,92,246,.08)}
+.toggles-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.excl-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(217,119,6,.12);color:#d97706;border:1px solid rgba(217,119,6,.3)}
+
+.container{max-width:1440px;margin:0 auto;padding:20px 28px}
+.section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px}
+.kpi-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
+.kpi-card::after{content:'🔍';position:absolute;right:10px;top:10px;font-size:11px;opacity:0;transition:opacity .18s}
+.kpi-card:hover{box-shadow:0 4px 16px rgba(37,99,235,.18);border-color:var(--accent);transform:translateY(-1px)}
+.kpi-card:hover::after{opacity:1}
+.kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.kpi-value{font-size:20px;font-weight:700;color:var(--text);line-height:1}
+.kpi-sub{font-size:11px;margin-top:5px}
+.kpi-up{color:var(--green)}.kpi-down{color:var(--red)}.kpi-neutral{color:var(--muted)}
+.kpi-card.alert{border-color:rgba(220,38,38,.35);background:rgba(220,38,38,.03)}
+.kpi-card.warn{border-color:rgba(217,119,6,.35);background:rgba(217,119,6,.03)}
+.kpi-card.good{border-color:rgba(22,163,74,.3);background:rgba(22,163,74,.03)}
+.kpi-hint{font-size:9px;color:var(--accent);opacity:.7;margin-top:4px;font-style:italic}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;backdrop-filter:blur(2px);align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:900px;box-shadow:0 24px 64px rgba(0,0,0,.25);animation:slideUp .22s ease-out;margin:auto}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{background:linear-gradient(135deg,#1e3a5f,#1e40af);border-radius:14px 14px 0 0;padding:18px 22px;display:flex;align-items:center;justify-content:space-between}
+.modal-title{color:#fff;font-size:15px;font-weight:700}
+.modal-meta{color:#bfdbfe;font-size:12px;margin-top:2px}
+.modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.modal-close:hover{background:rgba(255,255,255,.35)}
+.modal-body{padding:22px;max-height:72vh;overflow-y:auto}
+.modal-section{margin-bottom:22px}
+.modal-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* TABS */
+.tabs{display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--border)}
+.tab{padding:8px 14px;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;white-space:nowrap}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.tab:hover:not(.active){color:var(--text)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* CHARTS */
+.chart-row{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:22px}
+.chart-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.chart-card h3{font-size:12px;font-weight:600;color:var(--text);margin-bottom:14px}
+.chart-card.full{margin-bottom:22px}
+
+.legend-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* TABLES */
+.table-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:22px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow-x:auto}
+.table-card h3{font-size:12px;font-weight:600;color:var(--text);margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:7px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+thead th:first-child{text-align:left}
+tbody td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--border);color:var(--text)}
+tbody td:first-child{text-align:left;color:#334155}
+tbody tr:hover{background:#f8fafc}
+tbody tr.subtotal{background:#f8fafc;font-weight:600}
+tbody tr.subtotal td:first-child{padding-left:6px}
+tbody tr.subrow td{color:var(--muted);font-size:11px}
+tbody tr.subrow td:first-child{padding-left:20px}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600}
+.badge-loss{background:var(--tag-r);color:var(--red)}
+.badge-low{background:var(--tag-a);color:var(--amber)}
+.badge-ok{background:var(--tag-g);color:var(--green)}
+.badge-nodata{background:rgba(100,116,139,.1);color:var(--muted)}
+
+/* MINI TABLE (modal) */
+.mini-table{width:100%;border-collapse:collapse;font-size:12px}
+.mini-table th{background:#f8fafc;padding:6px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)}
+.mini-table th.r{text-align:right}
+.mini-table td{padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:12px}
+.mini-table td.r{text-align:right}
+.mini-table tr:last-child td{border-bottom:none}
+.mini-table tr:hover td{background:#f8fafc}
+
+/* PROGRESS BAR */
+.pbar-wrap{background:#f1f5f9;border-radius:4px;height:6px;overflow:hidden;min-width:60px}
+.pbar{height:100%;border-radius:4px;transition:width .3s}
+
+/* OBRA BANNER */
+.obra-banner{background:linear-gradient(135deg,#1e3a5f,#1e40af);border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px}
+.obra-banner .ob-name{font-size:16px;font-weight:700;color:#fff}
+.obra-banner .ob-meta{font-size:12px;color:#bfdbfe;margin-top:3px}
+.tipo-pill{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:rgba(255,255,255,.2);color:#fff}
+
+/* DEV CARDS */
+.devs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+.dev-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.dev-card.critico{border-left:3px solid var(--red)}
+.dev-card.urgente{border-left:3px solid var(--amber)}
+.dev-card.mejora{border-left:3px solid var(--blue)}
+.dev-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:8px}
+.dev-title{font-weight:600;font-size:12px;color:var(--text);line-height:1.3}
+.dev-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.dev-lbl.critico{background:rgba(220,38,38,.1);color:var(--red)}
+.dev-lbl.urgente{background:rgba(217,119,6,.1);color:var(--amber)}
+.dev-lbl.mejora{background:rgba(37,99,235,.1);color:var(--blue)}
+.dev-body{color:var(--muted);font-size:11px;line-height:1.6}
+.dev-body strong{color:var(--text)}
+
+/* SIN GASTOS TAB */
+.singas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:16px}
+.singas-card{background:#fff;border:1px solid var(--border);border-left:4px solid #dc2626;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05);cursor:pointer;transition:all .18s}
+.singas-card:hover{box-shadow:0 4px 16px rgba(220,38,38,.15);transform:translateY(-2px);border-left-color:#b91c1c}
+.singas-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px}
+.singas-name{font-weight:700;font-size:13px;color:var(--text);line-height:1.3}
+.singas-cod{font-size:10px;color:var(--muted);margin-top:3px}
+.singas-monto{font-weight:800;font-size:17px;color:#dc2626;white-space:nowrap;flex-shrink:0}
+.singas-alert{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.15);border-radius:6px;padding:6px 10px;font-size:11px;color:#dc2626;font-weight:600;margin-bottom:8px}
+.singas-footer{display:flex;align-items:center;justify-content:space-between}
+.singas-risk{font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px}
+.singas-risk.alto{background:rgba(220,38,38,.1);color:#dc2626}
+.singas-risk.medio{background:rgba(217,119,6,.1);color:#d97706}
+.singas-risk.bajo{background:rgba(100,116,139,.1);color:#64748b}
+/* PREGUNTAS TAB */
+.preg-intro{background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.2);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;line-height:1.6;color:var(--text)}
+.preg-card{background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:18px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.preg-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.preg-obra-name{font-weight:700;font-size:14px;color:var(--text);line-height:1.3}
+.preg-obra-meta{font-size:11px;color:var(--muted);margin-top:3px}
+.preg-kpis{display:flex;gap:14px;align-items:center;flex-shrink:0}
+.preg-kpi{text-align:right}
+.preg-kpi .pk-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.preg-kpi .pk-val{font-size:15px;font-weight:800}
+.preg-body{padding:14px 18px}
+.preg-nota{background:#fef9ec;border:1px solid #fde68a;border-radius:7px;padding:9px 12px;font-size:12px;color:#78350f;margin-bottom:12px;line-height:1.5}
+.preg-item{padding:11px 14px;margin-bottom:9px;border-radius:8px;border-left:3px solid var(--accent);background:#f8fafc}
+.preg-item:last-child{margin-bottom:0}
+.preg-item.critico{border-left-color:#dc2626;background:rgba(220,38,38,.03)}
+.preg-item.urgente{border-left-color:#d97706;background:rgba(217,119,6,.03)}
+.preg-q{font-weight:700;font-size:13px;color:var(--text);margin-bottom:5px;line-height:1.4}
+.preg-why{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:7px}
+.preg-tags{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.urgency-tag{font-size:9px;font-weight:700;padding:2px 8px;border-radius:5px;text-transform:uppercase;letter-spacing:.04em}
+.urgency-tag.critico{background:rgba(220,38,38,.12);color:#dc2626}
+.urgency-tag.urgente{background:rgba(217,119,6,.12);color:#d97706}
+.urgency-tag.seguimiento{background:rgba(37,99,235,.1);color:#2563eb}
+.resp-chip{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;display:inline-flex;align-items:center;gap:3px}
+.resp-chip.plan{background:rgba(37,99,235,.1);color:#1d4ed8;border:1px solid rgba(37,99,235,.2)}
+.resp-chip.prod{background:rgba(22,163,74,.1);color:#15803d;border:1px solid rgba(22,163,74,.2)}
+.resp-chip.fin{background:rgba(139,92,246,.1);color:#7c3aed;border:1px solid rgba(139,92,246,.2)}
+.resp-chip.admin{background:rgba(217,119,6,.1);color:#b45309;border:1px solid rgba(217,119,6,.2)}
+/* PLAN ACCION TAB */
+.plan-seccion{margin-bottom:22px}
+.plan-seccion-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:7px 12px;border-radius:7px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.plan-seccion-title.alta{background:rgba(220,38,38,.1);color:#dc2626}
+.plan-seccion-title.media{background:rgba(217,119,6,.1);color:#d97706}
+.plan-seccion-title.baja{background:rgba(22,163,74,.1);color:#16a34a}
+.plan-item{background:#fff;border:1px solid var(--border);border-radius:9px;padding:12px 16px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.plan-item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:5px}
+.plan-item-title{font-weight:700;font-size:13px;color:var(--text)}
+.plan-item-meta{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:6px}
+.plan-item-footer{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.plan-chip{font-size:10px;padding:2px 8px;border-radius:8px;font-weight:600}
+.plan-chip.quien{background:rgba(37,99,235,.1);color:#1d4ed8}
+.plan-chip.cuando{background:rgba(100,116,139,.08);color:var(--muted);border:1px solid var(--border)}
+.plan-chip.impacto{background:rgba(22,163,74,.1);color:#15803d}
+.footer{padding:12px 28px;border-top:1px solid var(--border);text-align:center;color:var(--muted);font-size:11px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>📊 Proyecciones de Obras — Grupo Mitre</h1>
+    <p>Ventas Rev04 · Gastos Rev03 · Mayo 2026 – Feb 2027 · Actualizado 25/05/2026</p>
+  </div>
+  <div style="display:flex;gap:8px">
+    <span class="rev-badge">VENTAS Rev.04</span>
+    <span class="rev-badge">GASTOS Rev.03</span>
+  </div>
+</div>
+
+<div class="filters">
+  <div class="filter-group">
+    <span class="filter-label">Tipo</span>
+    <select id="selTipo" onchange="onTipoChange()">
+      <option value="">Todos los tipos</option>
+      <option value="Civil">Civil (CIV)</option>
+      <option value="Demolición">Demolición (DEM)</option>
+      <option value="Excavación">Excavación (EXC)</option>
+      <option value="Infraestructura">Infraestructura (INF)</option>
+      <option value="Movimiento de Suelo">Movimiento de Suelo (MOV)</option>
+      <option value="Sin Clasificar">Sin Clasificar (S/N)</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Obra</span>
+    <select id="selObra" onchange="onObraChange()">
+      <option value="">Todas las obras</option>
+    </select>
+  </div>
+  <button class="clear-btn" onclick="clearFilters()">✕ Limpiar filtros</button>
+  <div id="filterChips" style="display:flex;gap:6px"></div>
+  <div class="toggles-group">
+    <span class="toggles-label">Gastos propios</span>
+    <button class="cat-toggle on-maq" id="tog-maquina" data-cat="Costo Máquina" onclick="toggleCat('Costo Máquina')" title="Activos propios — click para excluir del cálculo">🔧 Costo Máquina</button>
+    <button class="cat-toggle on-mod" id="tog-modulo" data-cat="Módulo" onclick="toggleCat('Módulo')" title="Módulos propios — click para excluir del cálculo">📦 Módulo</button>
+    <span id="exclBadge" style="display:none" class="excl-badge">⚠️ Excluidos del cálculo</span>
+  </div>
+</div>
+
+<div class="container">
+  <div id="obraBanner" style="display:none"></div>
+  <div class="section-title">Indicadores Clave <span style="font-size:10px;font-style:italic;opacity:.6;font-weight:400;text-transform:none">(click para detalle)</span></div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('resumen',this)">Resumen Mensual</div>
+    <div class="tab" onclick="switchTab('ingresos',this)">Detalle Ingresos</div>
+    <div class="tab" onclick="switchTab('gastos',this)">Detalle Gastos</div>
+    <div class="tab" onclick="switchTab('margenes',this)">Márgenes por Obra</div>
+    <div class="tab" onclick="switchTab('desvios',this)">Desvíos Críticos</div>
+    <div class="tab" onclick="switchTab('singastos',this)">⚠️ Sin Gastos</div>
+    <div class="tab" onclick="switchTab('preguntas',this)">🔍 Preguntas por Obra</div>
+    <div class="tab" onclick="switchTab('planaccion',this)">📋 Plan de Acción</div>
+  </div>
+  <div id="tab-resumen" class="tab-content active"></div>
+  <div id="tab-ingresos" class="tab-content"></div>
+  <div id="tab-gastos" class="tab-content"></div>
+  <div id="tab-margenes" class="tab-content"></div>
+  <div id="tab-desvios" class="tab-content"></div>
+  <div id="tab-singastos" class="tab-content"></div>
+  <div id="tab-preguntas" class="tab-content"></div>
+  <div id="tab-planaccion" class="tab-content"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnBg(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-meta" id="modalMeta"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="footer">Dashboard v3.1 · Claude AI · PROY VENTAS Rev04 + PROY GASTOS Rev03 · Grupo Mitre CFO &amp; Administración</div>
+
+<script>
+// ===================== DATA =====================
+const MESES = ['May-26','Jun-26','Jul-26','Aug-26','Sep-26','Oct-26','Nov-26','Dec-26','Jan-27','Feb-27'];
+
+const OBRAS = [{"nombre":"ARRIBEÑOS 1530 - GCDI","codigo":"400EXC0724","tipo":"Excavación","totalVentas":77.0,"totalGastos":76.94,"ventas":{"CERTIFICADO":[35.0,21.0,21.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[5.25,0.98,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[0.0,4.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[18.45,18.45,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[14.91,14.91,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"CEMENTERIO FLORES E 3 - GCBA","codigo":"408DEM0824","tipo":"Demolición","totalVentas":19.36,"totalGastos":0.0,"ventas":{"REDETERMINACIÓN":[0.0,19.36,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"INFRAESTRUCTURA BARRIO 20 - IVC","codigo":"420INFRA1224","tipo":"Infraestructura","totalVentas":1008.42,"totalGastos":1019.93,"ventas":{"OTRO":[0.0,0.0,0.0,33.0,0.0,0.0,0.0,0.0,0.0,0.0],"REDETERMINACIÓN":[86.09,103.19,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,92.91,102.61,35.55,0.0,0.0,0.0,0.0,0.0,0.0],"DEMASÍA":[0.0,255.07,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"ADICIONAL":[0.0,300.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[3.9,2.6,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[109.85,51.16,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[100.56,107.81,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[210.04,210.04,210.04,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Combustible":[6.96,6.96,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"PARQUE LA MATANZA - MIN AMBIENTE PBA","codigo":"424CIV0125","tipo":"Civil","totalVentas":60.0,"totalGastos":0.0,"ventas":{"OTRO":[0.0,0.0,0.0,60.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"SUBESTACION - LA TABLADA - ACINDAR","codigo":"425CIV0225","tipo":"Civil","totalVentas":4.62,"totalGastos":0.0,"ventas":{"ACTUALIZACIÓN":[4.62,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"RAMBLAS DEL PLATA - IRSA","codigo":"434INFRA0325","tipo":"Infraestructura","totalVentas":758.23,"totalGastos":583.5,"ventas":{"ACTUALIZACIÓN":[25.37,27.98,27.47,34.97,19.98,0.0,0.0,0.0,0.0,0.0],"ADICIONAL":[43.0,30.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,183.15,233.1,133.2,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[2.5,2.5,2.5,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[100.0,75.0,20.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Módulo":[4.0,4.0,4.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[100.0,100.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[20.0,20.0,20.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Combustible":[3.0,3.0,3.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"DEMOLICION PLATEA 1 MUGICA - IVC","codigo":"437DEM0525","tipo":"Demolición","totalVentas":34.58,"totalGastos":0.0,"ventas":{"REDETERMINACIÓN":[34.58,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"IREP - GCBA","codigo":"440DEM0625","tipo":"Demolición","totalVentas":1451.63,"totalGastos":1151.8,"ventas":{"REDETERMINACIÓN":[59.05,17.74,44.83,15.63,11.91,10.1,0.0,0.0,0.0,0.0],"CERTIFICADO":[87.69,130.0,50.0,66.2,62.45,27.97,37.0,37.0,0.0,0.0],"BED":[0.0,0.0,0.0,577.65,84.39,64.94,59.47,7.6,0.0,0.0]},"gastos":{"Fletes":[4.0,4.0,4.0,4.0,4.0,4.0,4.0,0.0,0.0,0.0],"Compras":[104.0,104.0,104.0,104.0,104.0,104.0,0.0,0.0,0.0,0.0],"Módulo":[0.8,0.8,0.8,0.8,0.8,0.8,0.0,0.0,0.0,0.0],"Sueldos":[75.0,75.0,75.0,75.0,75.0,75.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,0.0,15.0,15.0,15.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"INCENDIO DIAG 77 Y 48 - LA PLATA","codigo":"446DEM0725","tipo":"Demolición","totalVentas":-0.56,"totalGastos":0.0,"ventas":{"ADICIONAL":[25.13,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"OTRO":[-25.69,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"SUCRE 1253 - CABA - COINSA","codigo":"450DEM0925","tipo":"Demolición","totalVentas":6.06,"totalGastos":0.0,"ventas":{"ACTUALIZACIÓN":[0.0,0.5,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,5.56,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"DARWIN 1251 - CABA - GCBA","codigo":"451DEM0825","tipo":"Demolición","totalVentas":5.04,"totalGastos":0.0,"ventas":{"REDETERMINACIÓN":[0.0,0.0,5.04,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"CEMENTERIO DE FLORES E4 - GCBA","codigo":"458CIV1125","tipo":"Civil","totalVentas":689.08,"totalGastos":455.0,"ventas":{"REDETERMINACIÓN":[0.0,13.14,12.31,19.07,40.96,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,92.77,86.91,134.67,99.17,190.08,0.0,0.0,0.0,0.0]},"gastos":{"Compras":[85.0,150.0,95.0,85.0,0.0,0.0,0.0,0.0,0.0,0.0],"Módulo":[4.0,4.0,4.0,4.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[6.0,6.0,6.0,6.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"OREBIN Y CONVEYOR - VELADERO","codigo":"462DEM1225","tipo":"Demolición","totalVentas":76.61,"totalGastos":0.0,"ventas":{"CERTIFICADO":[76.61,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"AUTODROMO GALVEZ — INMAC + COARCO + TRITURADO","codigo":"465/467/472","tipo":"Demolición","nota":"Consolida 3 contratos del mismo sitio: INMAC (465DEM0126 — contrato principal, posee los gastos), COARCO (467DEM0226 — adicional triturado) y Triturado Autódromo (472DEM0326 — ingreso de triturado). Los gastos están asignados al contrato INMAC.","totalVentas":483.79,"totalGastos":390.8,"ventas":{"ACTUALIZACIÓN":[1.97,4.73,41.36,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,143.75,159.49,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"ADICIONAL — COARCO":[0.0,49.55,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"ADICIONAL — TRITURADO":[0.0,42.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERT. TRITURADO":[0.0,40.93,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[21.0,21.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[95.0,95.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Módulo":[2.4,2.4,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[35.0,35.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[30.0,30.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Combustible":[12.0,12.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"ECHEVERRIA 3721 - CABA","codigo":"466DEM0126","tipo":"Demolición","totalVentas":29.96,"totalGastos":42.49,"ventas":{"ACTUALIZACIÓN":[0.0,0.0,0.0,1.96,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,0.0,0.0,28.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[0.0,0.0,5.07,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[0.0,0.0,4.1,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,0.0,26.05,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,0.0,7.27,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"AV LA PLATA 2255 - CABA","codigo":"468DEM0226","tipo":"Demolición","totalVentas":159.56,"totalGastos":0.0,"ventas":{"LEGITIMO ABONO":[0.0,0.0,159.56,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"REMOCION ASBESTO - AUBASA","codigo":"469DEM0226","tipo":"Demolición","totalVentas":179.0,"totalGastos":161.1,"ventas":{"CERTIFICADO":[0.0,89.5,89.5,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[0.0,80.55,80.55,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"LAS TACUARAS 2843 - ITUZAINGO - IDEE","codigo":"470EXC0326","tipo":"Excavación","totalVentas":3.97,"totalGastos":0.0,"ventas":{"CERTIFICADO":[0.0,3.97,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"O HIGGINS 3451 - PORTLAND","codigo":"473DEM0326","tipo":"Demolición","totalVentas":56.0,"totalGastos":62.09,"ventas":{"CERTIFICADO":[0.0,0.0,28.0,28.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[0.0,3.62,3.62,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[0.0,4.95,4.95,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,15.54,15.54,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,5.83,5.83,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Combustible":[0.0,1.11,1.11,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"SOLANO LOPEZ 3312 - EPSE","codigo":"474DEM0326","tipo":"Demolición","totalVentas":68.06,"totalGastos":109.42,"ventas":{"CERTIFICADO":[0.0,6.81,27.22,27.22,6.81,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[0.83,2.5,2.5,2.18,0.7,0.0,0.0,0.0,0.0,0.0],"Compras":[0.06,9.27,2.82,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Módulo":[0.0,0.0,0.24,0.12,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[17.4,20.74,24.16,11.23,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,2.03,10.1,2.53,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"INCENDIO EZEIZA IRONMOUNTAIN","codigo":"477DEM0326","tipo":"Demolición","totalVentas":777.74,"totalGastos":172.91,"ventas":{"ADICIONAL":[0.0,191.48,191.48,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,276.65,118.13,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[3.4,2.24,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[0.0,2.25,1.2,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Módulo":[0.8,0.8,0.8,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[38.56,32.01,32.01,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[31.64,27.19,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"CARCEL VILLA SOLDATI GRUPO L","codigo":"478DEM0426","tipo":"Demolición","totalVentas":294.03,"totalGastos":235.58,"ventas":{"CERTIFICADO":[0.0,141.23,152.8,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[38.35,58.5,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Módulo":[0.4,0.36,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[31.27,31.27,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[34.84,40.58,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"JUAN FRANCISCO SEGUÍ 3947 ZAS","codigo":"479DEM0426","tipo":"Demolición","totalVentas":126.0,"totalGastos":257.98,"ventas":{"CERTIFICADO":[0.0,51.66,41.58,32.76,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[0.0,20.61,20.61,10.31,0.0,0.0,0.0,0.0,0.0,0.0],"Módulo":[0.0,10.92,10.92,5.46,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,22.43,22.43,11.21,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,38.78,38.78,19.39,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Combustible":[0.0,10.45,10.45,5.22,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"EMERGENCIA YATAY 348 CABA","codigo":"480DEM0426","tipo":"Demolición","totalVentas":28.0,"totalGastos":0.0,"ventas":{"LEGITIMO ABONO":[0.0,28.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"BOLSAS DE CEMENTO - HOLCIM","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":3.34,"totalGastos":0.0,"ventas":{"ACTUALIZACIÓN":[3.34,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"Dock sud_Coarco","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":76.0,"totalGastos":48.85,"ventas":{"CERTIFICADO":[0.0,0.0,76.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[0.0,0.65,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[0.0,27.67,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,19.35,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,1.17,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"EDIFICIO DEL PLATA - PMP","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":2247.53,"totalGastos":1939.74,"ventas":{"CERTIFICADO":[0.0,74.32,300.4,246.0,297.72,265.82,350.88,255.19,308.35,148.86]},"gastos":{"Fletes":[27.34,27.34,27.34,27.34,27.34,27.34,27.34,27.34,27.34,27.34],"Compras":[13.69,13.69,13.69,13.69,13.69,13.69,13.69,13.69,13.69,13.69],"Sueldos":[33.41,50.25,117.3,117.3,117.3,117.3,117.3,117.3,117.3,117.3],"Costo Máquina":[11.5,45.93,50.87,50.87,50.87,50.87,50.87,50.87,50.87,50.87],"Costo Combustible":[1.54,5.21,4.53,4.53,4.53,4.53,4.53,4.53,4.53,4.53]}},
+{"nombre":"HOSPITAL DURAND","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":241.2,"totalGastos":151.72,"ventas":{"CERTIFICADO":[0.0,0.0,103.48,57.94,39.58,0.0,0.0,0.0,0.0,0.0],"AF":[0.0,40.2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Compras":[0.0,48.12,28.87,19.25,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,22.67,13.6,9.07,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,5.07,3.04,2.03,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"HOSPITAL MUÑIZ","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":853.08,"totalGastos":643.92,"ventas":{"CERTIFICADO":[0.0,0.0,270.99,270.56,98.62,42.3,0.0,0.0,0.0,0.0],"AF":[0.0,170.62,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Compras":[0.0,102.64,99.87,47.16,27.74,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,63.02,61.32,28.95,17.03,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,72.59,70.63,33.35,19.62,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"HOSPITAL PIROVANO","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":141.01,"totalGastos":106.43,"ventas":{"CERTIFICADO":[0.0,0.0,59.61,29.68,23.52,0.0,0.0,0.0,0.0,0.0],"AF":[0.0,28.2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Compras":[0.0,30.49,15.24,15.24,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,21.14,10.57,10.57,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,1.59,0.79,0.79,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"HOSPITAL RAMOS MEJIA","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":198.52,"totalGastos":149.85,"ventas":{"CERTIFICADO":[0.0,0.0,83.99,42.31,20.6,11.92,0.0,0.0,0.0,0.0],"AF":[0.0,39.7,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Compras":[0.0,46.04,24.49,14.69,12.73,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,23.25,12.36,7.42,6.43,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,1.15,0.61,0.37,0.32,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"PARAGUAY - RED SA","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":155.0,"totalGastos":111.83,"ventas":{"AF":[0.0,31.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,0.0,62.0,62.0,0.0,0.0,0.0,0.0,0.0,0.0]},"gastos":{"Fletes":[0.0,7.12,7.12,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Compras":[0.0,12.23,12.23,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Sueldos":[0.0,23.75,23.75,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"Costo Máquina":[0.0,12.82,12.82,0.0,0.0,0.0,0.0,0.0,0.0,0.0]}},
+{"nombre":"Pedro goyena 655 - Portland","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":550.0,"totalGastos":0.0,"ventas":{"AF":[0.0,110.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,0.0,110.0,110.0,110.0,110.0,0.0,0.0,0.0,0.0]},"gastos":{}},
+{"nombre":"SILOS ROSARIO","codigo":"S/N","tipo":"Sin Clasificar","totalVentas":1850.0,"totalGastos":1469.09,"ventas":{"AF":[370.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"CERTIFICADO":[0.0,0.0,246.67,246.67,246.67,246.67,246.67,246.67,0.0,0.0]},"gastos":{"Fletes":[0.0,4.04,4.04,4.04,4.04,4.04,4.04,0.0,0.0,0.0],"Compras":[0.0,65.01,65.01,65.01,65.01,65.01,65.01,0.0,0.0,0.0],"Sueldos":[0.0,63.06,63.06,63.06,63.06,63.06,63.06,0.0,0.0,0.0],"Costo Máquina":[0.0,94.46,94.46,94.46,94.46,94.46,94.46,0.0,0.0,0.0],"Costo Combustible":[0.0,18.28,18.28,18.28,18.28,18.28,18.28,0.0,0.0,0.0]}}];
+
+// ===================== COLORS =====================
+const INGRESO_COLORS={'CERTIFICADO':'#2563eb','ADICIONAL':'#10b981','REDETERMINACIÓN':'#8b5cf6','AF':'#f59e0b','BED':'#ef4444','ACTUALIZACIÓN':'#06b6d4','DEMASÍA':'#ec4899','LEGITIMO ABONO':'#6366f1','OTRO':'#94a3b8'};
+const GASTO_COLORS={'Sueldos':'#f97316','Compras':'#3b82f6','Costo Máquina':'#dc2626','Fletes':'#16a34a','Módulo':'#8b5cf6','Costo Combustible':'#eab308','Otro':'#94a3b8'};
+const GRID='rgba(203,213,225,.6)';const TCOL='#64748b';
+
+// ===================== GASTOS PROPIOS TOGGLES =====================
+let EXCLUDED_CATS=new Set();
+
+function getObraGastos(o){
+  if(!EXCLUDED_CATS.size)return o.gastos;
+  return Object.fromEntries(Object.entries(o.gastos).filter(([c])=>!EXCLUDED_CATS.has(c)));
+}
+function getTG(o){
+  if(!EXCLUDED_CATS.size)return o.totalGastos;
+  return Object.values(getObraGastos(o)).reduce((s,a)=>s+a.reduce((x,v)=>x+(v||0),0),0);
+}
+function toggleCat(cat){
+  if(EXCLUDED_CATS.has(cat))EXCLUDED_CATS.delete(cat);else EXCLUDED_CATS.add(cat);
+  updateToggleButtons();render();
+}
+function updateToggleButtons(){
+  const maqBtn=document.getElementById('tog-maquina');
+  const modBtn=document.getElementById('tog-modulo');
+  const maqOn=!EXCLUDED_CATS.has('Costo Máquina');
+  const modOn=!EXCLUDED_CATS.has('Módulo');
+  maqBtn.className='cat-toggle'+(maqOn?' on-maq':'');
+  maqBtn.innerHTML=(maqOn?'🔧':'🚫')+' Costo Máquina';
+  modBtn.className='cat-toggle'+(modOn?' on-mod':'');
+  modBtn.innerHTML=(modOn?'📦':'🚫')+' Módulo';
+  const badge=document.getElementById('exclBadge');
+  badge.style.display=EXCLUDED_CATS.size?'inline-flex':'none';
+  if(EXCLUDED_CATS.size){
+    const names=[...EXCLUDED_CATS].join(' + ');
+    badge.textContent='⚠️ Excluido: '+names;
+  }
+}
+
+let activeTipo='',activeObra='',chartInstances={};
+
+// ===================== HELPERS =====================
+function getFiltered(){return OBRAS.filter(o=>(!activeTipo||o.tipo===activeTipo)&&(!activeObra||o.nombre===activeObra));}
+function sumArrays(arrays){const out=new Array(10).fill(0);arrays.forEach(a=>a.forEach((v,i)=>out[i]+=(v||0)));return out;}
+function getVentasMensual(obras){return sumArrays(obras.map(o=>sumArrays(Object.values(o.ventas))));}
+function getGastosMensual(obras){return sumArrays(obras.map(o=>sumArrays(Object.values(getObraGastos(o)))));}
+function fmt(v,dec=1){if(Math.abs(v)>=1000)return`$${(v/1000).toFixed(1)}B`;if(Math.abs(v)>=1)return`$${v.toFixed(dec)}M`;return`$${(v*1000).toFixed(0)}K`;}
+function pct(a,b){return b>0?(a/b*100):0;}
+function destroyChart(id){if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}}
+function clr(v,good='#16a34a',bad='#dc2626'){return v>=0?good:bad;}
+
+// ===================== FILTERS =====================
+function populateObraDropdown(){
+  const sel=document.getElementById('selObra'),cur=sel.value;
+  sel.innerHTML='<option value="">Todas las obras</option>';
+  const filtered=activeTipo?OBRAS.filter(o=>o.tipo===activeTipo):OBRAS;
+  [...filtered].sort((a,b)=>{
+    const mA=a.codigo.match(/^(\d+)/),mB=b.codigo.match(/^(\d+)/);
+    const nA=mA?parseInt(mA[1]):Infinity,nB=mB?parseInt(mB[1]):Infinity;
+    if(nA!==nB)return nA-nB;return a.nombre.localeCompare(b.nombre);
+  }).forEach(o=>{
+    const opt=document.createElement('option');
+    opt.value=o.nombre;opt.textContent=`${o.codigo?o.codigo+' · ':''}${o.nombre}`;
+    if(o.nombre===cur)opt.selected=true;sel.appendChild(opt);
+  });
+}
+function onTipoChange(){activeTipo=document.getElementById('selTipo').value;activeObra='';document.getElementById('selObra').value='';populateObraDropdown();render();}
+function onObraChange(){activeObra=document.getElementById('selObra').value;render();}
+function clearFilters(){activeTipo='';activeObra='';document.getElementById('selTipo').value='';document.getElementById('selObra').value='';populateObraDropdown();render();}
+function updateChips(){const div=document.getElementById('filterChips');div.innerHTML='';if(activeTipo){const c=document.createElement('div');c.className='filter-chip';c.textContent='🏷 '+activeTipo;div.appendChild(c);}if(activeObra){const c=document.createElement('div');c.className='filter-chip';c.textContent='🏗 '+activeObra;div.appendChild(c);}}
+
+// ===================== MODAL =====================
+function openModal(title,meta,html){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalMeta').textContent=meta;
+  document.getElementById('modalBody').innerHTML=html;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');}
+function closeModalOnBg(e){if(e.target===document.getElementById('modalOverlay'))closeModal();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+// ---- KPI Modals ----
+function showModalVentas(obras){
+  const vTotal=obras.reduce((s,o)=>s+o.totalVentas,0);
+  const sorted=[...obras].filter(o=>o.totalVentas>0).sort((a,b)=>b.totalVentas-a.totalVentas);
+  const allTipos=[...new Set(obras.flatMap(o=>Object.keys(o.ventas)))];
+  const tipoTotals={};allTipos.forEach(t=>{tipoTotals[t]=obras.reduce((s,o)=>{const a=o.ventas[t]||[];return s+a.reduce((x,v)=>x+(v||0),0);},0);});
+  const tipoSorted=Object.entries(tipoTotals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+
+  let rows=sorted.slice(0,15).map(o=>{const pbar=Math.round(o.totalVentas/vTotal*100);return`<tr><td>${o.codigo?`<span style="font-size:10px;color:var(--muted);margin-right:6px">${o.codigo}</span>`:''}${o.nombre}</td><td class="r" style="font-weight:600">${fmt(o.totalVentas)}</td><td class="r" style="color:var(--muted)">${(o.totalVentas/vTotal*100).toFixed(1)}%</td><td style="width:100px"><div class="pbar-wrap"><div class="pbar" style="width:${pbar}%;background:#2563eb"></div></div></td></tr>`;}).join('');
+  if(sorted.length>15)rows+=`<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic">...y ${sorted.length-15} obras más</td></tr>`;
+
+  let tipoRows=tipoSorted.map(([t,v])=>{const pbar=Math.round(v/vTotal*100);return`<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${INGRESO_COLORS[t]||'#94a3b8'};margin-right:6px;vertical-align:middle"></span>${t}</td><td class="r" style="font-weight:600">${fmt(v)}</td><td class="r" style="color:var(--muted)">${(v/vTotal*100).toFixed(1)}%</td><td style="width:100px"><div class="pbar-wrap"><div class="pbar" style="width:${pbar}%;background:${INGRESO_COLORS[t]||'#94a3b8'}"></div></div></td></tr>`;}).join('');
+
+  openModal('💰 Ventas Totales — Detalle',`${fmt(vTotal)} · ${obras.length} obras · May-26 a Feb-27`,`
+    <div class="modal-section">
+      <div class="modal-section-title">Top Obras por Volumen de Ventas</div>
+      <table class="mini-table"><thead><tr><th>Obra</th><th class="r">Monto</th><th class="r">%</th><th>Participación</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Composición por Tipo de Ingreso</div>
+      <table class="mini-table"><thead><tr><th>Tipo</th><th class="r">Total</th><th class="r">%</th><th>Participación</th></tr></thead><tbody>${tipoRows}</tbody></table>
+    </div>`);
+}
+
+function showModalGastos(obras){
+  const gTotal=obras.reduce((s,o)=>s+getTG(o),0);
+  const sorted=[...obras].filter(o=>getTG(o)>0).sort((a,b)=>getTG(b)-getTG(a));
+  const allCats=[...new Set(obras.flatMap(o=>Object.keys(getObraGastos(o))))];
+  const catTotals={};allCats.forEach(c=>{catTotals[c]=obras.reduce((s,o)=>{const a=getObraGastos(o)[c]||[];return s+a.reduce((x,v)=>x+(v||0),0);},0);});
+  const catSorted=Object.entries(catTotals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+
+  let rows=sorted.slice(0,15).map(o=>{const tg=getTG(o);const pbar=Math.round(tg/gTotal*100);return`<tr><td>${o.codigo?`<span style="font-size:10px;color:var(--muted);margin-right:6px">${o.codigo}</span>`:''}${o.nombre}</td><td class="r" style="font-weight:600">${fmt(tg)}</td><td class="r" style="color:var(--muted)">${(tg/gTotal*100).toFixed(1)}%</td><td style="width:100px"><div class="pbar-wrap"><div class="pbar" style="width:${pbar}%;background:#dc2626"></div></div></td></tr>`;}).join('');
+
+  let catRows=catSorted.map(([c,v])=>{const pbar=Math.round(v/gTotal*100);return`<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${GASTO_COLORS[c]||'#94a3b8'};margin-right:6px;vertical-align:middle"></span>${c}</td><td class="r" style="font-weight:600">${fmt(v)}</td><td class="r" style="color:var(--muted)">${(v/gTotal*100).toFixed(1)}%</td><td style="width:100px"><div class="pbar-wrap"><div class="pbar" style="width:${pbar}%;background:${GASTO_COLORS[c]||'#94a3b8'}"></div></div></td></tr>`;}).join('');
+
+  openModal('📊 Gastos Proyectados — Detalle',`${fmt(gTotal)} · ${sorted.length} obras con gastos`,`
+    <div class="modal-section">
+      <div class="modal-section-title">Top Obras por Gasto</div>
+      <table class="mini-table"><thead><tr><th>Obra</th><th class="r">Monto</th><th class="r">%</th><th>Participación</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Composición por Categoría de Gasto</div>
+      <table class="mini-table"><thead><tr><th>Categoría</th><th class="r">Total</th><th class="r">%</th><th>Participación</th></tr></thead><tbody>${catRows}</tbody></table>
+    </div>`);
+}
+
+function showModalMargen(obras){
+  const vTotal=obras.reduce((s,o)=>s+o.totalVentas,0);
+  const gTotal=obras.reduce((s,o)=>s+getTG(o),0);
+  const margen=vTotal-gTotal;
+  const sorted=[...obras].filter(o=>getTG(o)>0).sort((a,b)=>{
+    const ma=a.totalVentas-getTG(a),mb=b.totalVentas-getTG(b);
+    return ma-mb;
+  });
+
+  const rows=sorted.map(o=>{
+    const tg=getTG(o),m=o.totalVentas-tg,mp=o.totalVentas>0?(m/o.totalVentas*100):0;
+    const bCls=m<0?'badge-loss':mp<15?'badge-low':'badge-ok';
+    const bTxt=m<0?'PÉRDIDA':mp<15?'BAJO':'OK';
+    return`<tr>
+      <td>${o.codigo?`<span style="font-size:10px;color:var(--muted);margin-right:4px">${o.codigo}</span>`:''}${o.nombre}</td>
+      <td class="r">${fmt(o.totalVentas)}</td>
+      <td class="r">${fmt(tg)}</td>
+      <td class="r" style="color:${clr(m)};font-weight:600">${m>=0?'+':''}${fmt(m)}</td>
+      <td class="r" style="color:${clr(mp-0.001)};font-weight:600">${mp.toFixed(1)}%</td>
+      <td><span class="badge ${bCls}">${bTxt}</span></td>
+    </tr>`;
+  }).join('');
+
+  openModal('📈 Margen Bruto — Por Obra',`${fmt(margen)} total · ${(margen/vTotal*100).toFixed(1)}% sobre ventas`,`
+    <div class="modal-section">
+      <div class="modal-section-title">Márgenes por Obra (ordenado de menor a mayor)</div>
+      <table class="mini-table"><thead><tr><th>Obra</th><th class="r">Ventas</th><th class="r">Gastos</th><th class="r">Margen</th><th class="r">%</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`);
+}
+
+function showModalPerdida(obras){
+  const enPerdida=obras.filter(o=>getTG(o)>0&&getTG(o)>o.totalVentas).sort((a,b)=>(a.totalVentas-getTG(a))-(b.totalVentas-getTG(b)));
+  const rows=enPerdida.map(o=>{
+    const tg=getTG(o),m=o.totalVentas-tg,mp=o.totalVentas>0?(m/o.totalVentas*100):-999;
+    const cats=Object.entries(getObraGastos(o)).map(([c,a])=>{const t=a.reduce((s,v)=>s+(v||0),0);return`<span style="display:inline-flex;align-items:center;gap:3px;margin:2px;padding:2px 6px;background:#f1f5f9;border-radius:4px;font-size:10px"><span style="width:7px;height:7px;border-radius:50%;background:${GASTO_COLORS[c]||'#94a3b8'}"></span>${c} ${fmt(t)}</span>`;}).join('');
+    return`<tr><td><strong>${o.nombre}</strong><br><span style="font-size:10px;color:var(--muted)">${o.codigo} · ${o.tipo}</span><br><div style="margin-top:4px">${cats}</div></td>
+      <td class="r">${fmt(o.totalVentas)}</td>
+      <td class="r">${fmt(tg)}</td>
+      <td class="r" style="color:#dc2626;font-weight:700">${fmt(m)}<br><span style="font-size:10px">${mp.toFixed(0)}%</span></td>
+    </tr>`;
+  }).join('');
+
+  openModal('🚨 Obras en Pérdida',`${enPerdida.length} obra${enPerdida.length!==1?'s':''} con gastos mayores a ventas`,
+    enPerdida.length===0?`<div style="padding:40px;text-align:center;color:var(--green);font-size:24px">✅ Ninguna obra en pérdida</div>`:`
+    <div class="modal-section">
+      <div class="modal-section-title">Detalle por Obra</div>
+      <table class="mini-table"><thead><tr><th>Obra</th><th class="r">Ventas</th><th class="r">Gastos</th><th class="r">Déficit</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`);
+}
+
+function showModalDeficit(obras){
+  const vm=getVentasMensual(obras),gm=getGastosMensual(obras);
+  const cf=vm.map((v,i)=>v-gm[i]);
+  const defMeses=cf.map((v,i)=>({mes:MESES[i],cf:v,vm:vm[i],gm:gm[i],idx:i})).filter(x=>x.cf<0);
+
+  const rows=MESES.map((m,i)=>{
+    const c=cf[i],mp=vm[i]>0?c/vm[i]*100:0;
+    const bar=Math.abs(c)/Math.max(...cf.map(Math.abs))*100;
+    return`<tr style="${c<0?'background:rgba(220,38,38,.04)':''}">
+      <td style="font-weight:${c<0?'700':'400'}">${m}</td>
+      <td class="r">${fmt(vm[i])}</td>
+      <td class="r">${fmt(gm[i])}</td>
+      <td class="r" style="color:${clr(c)};font-weight:600">${c>=0?'+':''}${fmt(c)}</td>
+      <td class="r" style="color:${clr(mp)}">${mp.toFixed(1)}%</td>
+      <td><div class="pbar-wrap"><div class="pbar" style="width:${Math.min(bar,100)}%;background:${c>=0?'#16a34a':'#dc2626'}"></div></div></td>
+    </tr>`;
+  }).join('');
+
+  let detalle='';
+  if(defMeses.length>0){
+    detalle=defMeses.map(x=>{
+      // Top gastos ese mes
+      const topG=obras.flatMap(o=>Object.entries(getObraGastos(o)).map(([c,arr])=>({obra:o.nombre,cat:c,val:arr[x.idx]||0}))).filter(g=>g.val>0).sort((a,b)=>b.val-a.val).slice(0,5);
+      return`<div style="margin-bottom:16px;padding:12px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
+        <div style="font-weight:700;color:#dc2626;margin-bottom:8px">⚠️ ${x.mes} — Déficit ${fmt(x.cf)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Principales gastos ese mes:</div>
+        ${topG.map(g=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span>${g.obra.substring(0,30)}… <em>${g.cat}</em></span><span style="font-weight:600;color:#dc2626">${fmt(g.val)}</span></div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  openModal('📅 Meses con Déficit de Flujo',`${defMeses.length} mes${defMeses.length!==1?'es':''} con flujo neto negativo`,`
+    <div class="modal-section">
+      <div class="modal-section-title">Flujo Mensual (May-26 a Feb-27)</div>
+      <table class="mini-table"><thead><tr><th>Mes</th><th class="r">Ventas</th><th class="r">Gastos</th><th class="r">Flujo Neto</th><th class="r">% Margen</th><th>Barra</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>
+    ${defMeses.length>0?`<div class="modal-section"><div class="modal-section-title">Análisis de Meses en Déficit</div>${detalle}</div>`:''}`);
+}
+
+// ===================== KPI =====================
+function renderKPIs(obras){
+  const vTotal=obras.reduce((s,o)=>s+o.totalVentas,0);
+  const gTotal=obras.reduce((s,o)=>s+getTG(o),0);
+  const margen=vTotal-gTotal,margenPct=pct(margen,vTotal);
+  const obrasLoss=obras.filter(o=>getTG(o)>0&&getTG(o)>o.totalVentas).length;
+  const vm=getVentasMensual(obras),gm=getGastosMensual(obras);
+  const deficit=vm.filter((v,i)=>v-gm[i]<0).length;
+
+  const kpis=[
+    {label:'Ventas Totales (Sin IVA)',value:fmt(vTotal,1),sub:`${obras.length} obra${obras.length!==1?'s':''}`,hint:'Por obra · por tipo',cls:'good',subcls:'kpi-neutral',fn:()=>showModalVentas(obras)},
+    {label:'Gastos Proyectados'+(EXCLUDED_CATS.size?` (−${[...EXCLUDED_CATS].join('/')})` :''),value:fmt(gTotal,1),sub:gTotal>0?`${pct(gTotal,vTotal).toFixed(0)}% de ventas`:'Sin gastos',hint:'Por obra · por categoría',cls:gTotal>vTotal?'alert':'',subcls:gTotal>vTotal?'kpi-down':'kpi-neutral',fn:()=>showModalGastos(obras)},
+    {label:'Margen Bruto',value:fmt(margen,1),sub:`${margenPct.toFixed(1)}% sobre ventas`,hint:'Ranking de márgenes',cls:margenPct<5?'alert':margenPct<20?'warn':'good',subcls:margen<0?'kpi-down':'kpi-up',fn:()=>showModalMargen(obras)},
+    {label:'Obras en Pérdida',value:obrasLoss.toString(),sub:'gastos > ventas',hint:'Ver detalle por obra',cls:obrasLoss>0?'alert':'good',subcls:obrasLoss>0?'kpi-down':'kpi-up',fn:()=>showModalPerdida(obras)},
+    {label:'Meses con Déficit',value:deficit.toString(),sub:'flujo neto negativo',hint:'Detalle mensual',cls:deficit>0?'warn':'good',subcls:deficit>0?'kpi-down':'kpi-up',fn:()=>showModalDeficit(obras)},
+  ];
+  document.getElementById('kpiGrid').innerHTML=kpis.map((k,i)=>`
+    <div class="kpi-card ${k.cls}" onclick="kpiHandlers[${i}]()">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub ${k.subcls}">${k.sub}</div>
+      <div class="kpi-hint">🔍 ${k.hint}</div>
+    </div>`).join('');
+  window.kpiHandlers=kpis.map(k=>k.fn);
+}
+
+// ===================== OBRA BANNER =====================
+function renderObraBanner(obra){
+  const b=document.getElementById('obraBanner');
+  if(!obra){b.style.display='none';return;}
+  const o=OBRAS.find(x=>x.nombre===obra);
+  if(!o){b.style.display='none';return;}
+  const tg=getTG(o),margen=o.totalVentas-tg,mp=o.totalVentas>0?(margen/o.totalVentas*100):0;
+  b.style.display='block';
+  b.innerHTML=`<div class="obra-banner"><div style="flex:1"><div class="ob-name">${o.nombre}</div><div class="ob-meta">Código: ${o.codigo} &nbsp;·&nbsp; ${o.tipo} &nbsp;·&nbsp; Ventas: ${fmt(o.totalVentas)} &nbsp;·&nbsp; Gastos: ${fmt(tg)} &nbsp;·&nbsp; Margen: ${fmt(margen)} (${mp.toFixed(1)}%)</div></div><span class="tipo-pill">${o.tipo}</span></div>`;
+}
+
+// ===================== TAB RESUMEN =====================
+function renderResumen(obras){
+  const vm=getVentasMensual(obras),gm=getGastosMensual(obras),cf=vm.map((v,i)=>v-gm[i]);
+  document.getElementById('tab-resumen').innerHTML=`
+    <div class="chart-row">
+      <div class="chart-card"><h3>Ventas vs Gastos Mensuales (ARS Millones)</h3><div style="height:250px"><canvas id="cVG"></canvas></div></div>
+      <div class="chart-card"><h3>Flujo de Caja Neto</h3><div style="height:250px"><canvas id="cCF"></canvas></div></div>
+    </div>
+    <div class="table-card"><h3>Detalle Mensual</h3>
+      <table><thead><tr><th>Mes</th><th>Ventas</th><th>Gastos</th><th>Flujo Neto</th><th>%Margen</th><th>Estado</th></tr></thead>
+      <tbody>${MESES.map((m,i)=>{const c=cf[i],mp=vm[i]>0?pct(cf[i],vm[i]):0;return`<tr><td>${m}</td><td>$${vm[i].toFixed(1)}M</td><td>$${gm[i].toFixed(1)}M</td><td style="color:${clr(c)};font-weight:600">${c>=0?'+':''}$${c.toFixed(1)}M</td><td style="color:${mp<0?'#dc2626':mp<15?'#d97706':'#16a34a'}">${mp.toFixed(1)}%</td><td><span class="badge ${c>=0?'badge-ok':'badge-loss'}">${c>=0?'Superávit':'Déficit'}</span></td></tr>`;}).join('')}</tbody></table></div>`;
+  destroyChart('cVG');destroyChart('cCF');
+  Chart.defaults.color=TCOL;Chart.defaults.borderColor=GRID;
+  chartInstances['cVG']=new Chart(document.getElementById('cVG'),{type:'bar',data:{labels:MESES,datasets:[{label:'Ventas',data:vm,backgroundColor:'rgba(37,99,235,.7)',borderRadius:4},{label:'Gastos',data:gm,backgroundColor:'rgba(220,38,38,.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{size:11}}}},scales:{x:{grid:{color:GRID}},y:{grid:{color:GRID},ticks:{callback:v=>`$${v}M`}}}}});
+  chartInstances['cCF']=new Chart(document.getElementById('cCF'),{type:'bar',data:{labels:MESES,datasets:[{label:'Flujo Neto',data:cf,backgroundColor:cf.map(v=>v>=0?'rgba(22,163,74,.7)':'rgba(220,38,38,.7)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:GRID}},y:{grid:{color:GRID},ticks:{callback:v=>`$${v}M`}}}}});
+}
+
+// ===================== TAB INGRESOS =====================
+function renderIngresos(obras){
+  const allTipos=[...new Set(obras.flatMap(o=>Object.keys(o.ventas)))];
+  const datasets=allTipos.map(t=>{const data=sumArrays(obras.map(o=>o.ventas[t]||new Array(10).fill(0)));const col=INGRESO_COLORS[t]||INGRESO_COLORS['OTRO'];return{label:t,data,backgroundColor:col+'cc',borderRadius:3};});
+  const grandTotal=obras.reduce((s,o)=>s+o.totalVentas,0);
+  let tableRows='';
+  if(activeObra){
+    const o=obras[0];
+    Object.entries(o.ventas).forEach(([tipo,monthly])=>{
+      const total=monthly.reduce((a,v)=>a+(v||0),0);if(total===0)return;
+      tableRows+=`<tr class="subtotal"><td colspan="2" style="color:var(--text)">${tipo}</td><td colspan="8"></td><td style="font-weight:700">$${total.toFixed(1)}M</td></tr>`;
+      MESES.forEach((m,i)=>{if(monthly[i]>0)tableRows+=`<tr class="subrow"><td>${m}</td><td colspan="9" style="text-align:left;color:var(--muted)">${tipo}</td><td>$${monthly[i].toFixed(1)}M</td></tr>`;});
+    });
+  }else{
+    obras.forEach(o=>{
+      const oTotal=Object.values(o.ventas).reduce((s,a)=>s+a.reduce((x,v)=>x+(v||0),0),0);if(oTotal===0)return;
+      tableRows+=`<tr class="subtotal"><td>${o.nombre}</td><td style="text-align:right;font-size:10px;color:var(--muted)">${o.codigo}</td>${MESES.map((_,i)=>`<td>$${sumArrays(Object.values(o.ventas))[i].toFixed(0)}</td>`).join('')}<td>$${oTotal.toFixed(0)}M</td></tr>`;
+      Object.entries(o.ventas).forEach(([tipo,monthly])=>{const tTotal=monthly.reduce((a,v)=>a+(v||0),0);if(tTotal>0)tableRows+=`<tr class="subrow"><td style="padding-left:20px">${tipo}</td><td></td>${monthly.map(v=>`<td>${v>0?'$'+v.toFixed(0):'—'}</td>`).join('')}<td>$${tTotal.toFixed(0)}M</td></tr>`;});
+    });
+  }
+  document.getElementById('tab-ingresos').innerHTML=`
+    <div class="chart-card full"><h3>Ingresos por Tipo — Mensual (ARS Millones)</h3><div style="height:280px"><canvas id="cIng"></canvas></div><div class="legend-row">${allTipos.map(t=>`<div class="legend-item"><div class="legend-dot" style="background:${INGRESO_COLORS[t]||'#94a3b8'}"></div>${t}</div>`).join('')}</div></div>
+    <div class="table-card"><h3>Desglose de Ingresos por Tipo</h3><table><thead><tr><th>Obra / Tipo</th><th>Cód</th>${MESES.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead><tbody>${tableRows}<tr style="background:#f0f4f8;font-weight:700;font-size:12px"><td colspan="2">TOTAL GENERAL</td>${sumArrays(obras.map(o=>sumArrays(Object.values(o.ventas)))).map(v=>`<td>$${v.toFixed(0)}</td>`).join('')}<td>$${grandTotal.toFixed(0)}M</td></tr></tbody></table></div>`;
+  destroyChart('cIng');
+  chartInstances['cIng']=new Chart(document.getElementById('cIng'),{type:'bar',data:{labels:MESES,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,grid:{color:GRID}},y:{stacked:true,grid:{color:GRID},ticks:{callback:v=>`$${v}M`}}}}});
+}
+
+// ===================== TAB GASTOS =====================
+function renderGastos(obras){
+  const obrasConG=obras.filter(o=>Object.keys(getObraGastos(o)).length>0);
+  const allCats=[...new Set(obrasConG.flatMap(o=>Object.keys(getObraGastos(o))))];
+  const datasets=allCats.map(c=>{const data=sumArrays(obrasConG.map(o=>getObraGastos(o)[c]||new Array(10).fill(0)));const col=GASTO_COLORS[c]||GASTO_COLORS['Otro'];return{label:c,data,backgroundColor:col+'cc',borderRadius:3};});
+  const grandTotal=obrasConG.reduce((s,o)=>s+getTG(o),0);
+  let tableRows='';
+  if(activeObra&&obrasConG.length>0){
+    const o=obrasConG[0];
+    Object.entries(getObraGastos(o)).forEach(([cat,monthly])=>{const total=monthly.reduce((a,v)=>a+(v||0),0);tableRows+=`<tr class="subtotal"><td colspan="2">${cat}</td>${monthly.map(v=>`<td>${v>0?'$'+v.toFixed(1):'—'}</td>`).join('')}<td>$${total.toFixed(1)}M</td></tr>`;});
+  }else{
+    obrasConG.forEach(o=>{
+      const tg=getTG(o);
+      tableRows+=`<tr class="subtotal"><td>${o.nombre}</td><td style="text-align:right;font-size:10px;color:var(--muted)">${o.codigo}</td>${MESES.map((_,i)=>`<td>$${sumArrays(Object.values(getObraGastos(o)))[i].toFixed(0)}</td>`).join('')}<td>$${tg.toFixed(0)}M</td></tr>`;
+      Object.entries(getObraGastos(o)).forEach(([cat,monthly])=>{const cTotal=monthly.reduce((a,v)=>a+(v||0),0);if(cTotal>0)tableRows+=`<tr class="subrow"><td style="padding-left:20px">${cat}</td><td></td>${monthly.map(v=>`<td>${v>0?'$'+v.toFixed(0):'—'}</td>`).join('')}<td>$${cTotal.toFixed(0)}M</td></tr>`;});
+    });
+  }
+  const exclNote=EXCLUDED_CATS.size?`<div style="background:rgba(217,119,6,.08);border:1px solid rgba(217,119,6,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400e">⚠️ <strong>Categorías excluidas del cálculo:</strong> ${[...EXCLUDED_CATS].join(', ')} — Los gastos reales de la obra incluyen estos conceptos.</div>`:'';
+  document.getElementById('tab-gastos').innerHTML=`
+    ${exclNote}
+    <div class="chart-card full"><h3>Gastos por Categoría — Mensual (ARS Millones)</h3><div style="height:280px"><canvas id="cGst"></canvas></div><div class="legend-row">${allCats.map(c=>`<div class="legend-item"><div class="legend-dot" style="background:${GASTO_COLORS[c]||'#94a3b8'}"></div>${c}</div>`).join('')}</div></div>
+    <div class="table-card"><h3>Desglose de Gastos por Categoría</h3><table><thead><tr><th>Obra / Categoría</th><th>Cód</th>${MESES.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead><tbody>${tableRows}<tr style="background:#f0f4f8;font-weight:700;font-size:12px"><td colspan="2">TOTAL GENERAL</td>${sumArrays(obrasConG.map(o=>sumArrays(Object.values(getObraGastos(o))))).map(v=>`<td>$${v.toFixed(0)}</td>`).join('')}<td>$${grandTotal.toFixed(0)}M</td></tr></tbody></table></div>
+    ${obras.filter(o=>o.totalVentas>0&&o.totalGastos===0).length>0?`<div class="table-card"><h3>⚠️ Obras sin Gastos Cargados</h3><table><thead><tr><th>Obra</th><th>Código</th><th>Tipo</th><th>Ventas</th></tr></thead><tbody>${obras.filter(o=>o.totalVentas>0&&o.totalGastos===0).map(o=>`<tr><td>${o.nombre}</td><td>${o.codigo}</td><td>${o.tipo}</td><td style="text-align:right">$${o.totalVentas.toFixed(1)}M</td></tr>`).join('')}</tbody></table></div>`:''}`;
+  destroyChart('cGst');
+  if(obrasConG.length>0)chartInstances['cGst']=new Chart(document.getElementById('cGst'),{type:'bar',data:{labels:MESES,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,grid:{color:GRID}},y:{stacked:true,grid:{color:GRID},ticks:{callback:v=>`$${v}M`}}}}});
+}
+
+// ===================== TAB MARGENES =====================
+function renderMargenes(obras){
+  const sorted=[...obras].filter(o=>o.totalVentas>0||getTG(o)>0).sort((a,b)=>{
+    const ma=a.totalVentas-getTG(a),mb=b.totalVentas-getTG(b);
+    if(getTG(a)===0&&getTG(b)>0)return 1;if(getTG(b)===0&&getTG(a)>0)return -1;return ma-mb;
+  });
+  const withG=sorted.filter(o=>getTG(o)>0);
+  document.getElementById('tab-margenes').innerHTML=`
+    <div class="chart-card full"><h3>Margen por Obra (ARS Millones)</h3><div style="height:${Math.max(280,withG.length*28)}px"><canvas id="cMar"></canvas></div></div>
+    <div class="table-card"><h3>Tabla de Márgenes</h3><table><thead><tr><th>Obra</th><th>Código</th><th>Tipo</th><th>Ventas</th><th>Gastos</th><th>Margen</th><th>%</th><th>Estado</th></tr></thead>
+    <tbody>${sorted.map(o=>{const tg=getTG(o),m=o.totalVentas-tg,mp=o.totalVentas>0?(m/o.totalVentas*100):0,hasG=tg>0;const bCls=!hasG?'badge-nodata':m<0?'badge-loss':mp<15?'badge-low':'badge-ok';const bTxt=!hasG?'SIN GASTOS':m<0?'PÉRDIDA':mp<15?'BAJO':'OK';return`<tr><td>${o.nombre}</td><td style="font-size:11px;color:var(--muted)">${o.codigo}</td><td><span class="badge" style="background:rgba(37,99,235,.1);color:var(--accent)">${o.tipo}</span></td><td>$${o.totalVentas.toFixed(1)}M</td><td>${hasG?'$'+tg.toFixed(1)+'M':'—'}</td><td style="color:${!hasG?'var(--muted)':clr(m)};font-weight:600">${hasG?(m>=0?'+':'')+'$'+m.toFixed(1)+'M':'—'}</td><td style="color:${!hasG?'var(--muted)':clr(mp-0.001)};font-weight:600">${hasG?mp.toFixed(1)+'%':'—'}</td><td><span class="badge ${bCls}">${bTxt}</span></td></tr>`;}).join('')}</tbody></table></div>`;
+  destroyChart('cMar');
+  if(withG.length>0){const margenes=withG.map(o=>o.totalVentas-getTG(o));chartInstances['cMar']=new Chart(document.getElementById('cMar'),{type:'bar',data:{labels:withG.map(o=>o.nombre),datasets:[{label:'Margen',data:margenes,backgroundColor:margenes.map(v=>v<0?'rgba(220,38,38,.75)':'rgba(22,163,74,.7)'),borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:GRID},ticks:{callback:v=>`$${v}M`}},y:{grid:{color:'transparent'},ticks:{font:{size:11}}}}}})}
+}
+
+// ===================== TAB DESVIOS =====================
+function renderDesvios(){
+  const desvios=[
+    {tipo:'critico',titulo:'Mayo-26: Déficit de Flujo -$632M',body:`El único mes con gastos mayores a ingresos. Costo Máquina de Barrio 20 (<strong>$210M</strong>) y gastos de IREP (<strong>$183M</strong>) sin cobros aún en mayo son los principales drivers. El AF de Hospitales GCBA (<strong>$278M</strong>) está proyectado en junio pero aún no cobrado. Evaluar financiamiento a corto plazo o adelantar cobranzas.`},
+    {tipo:'critico',titulo:'5 Obras en Pérdida — Juan F. Seguí -105%',body:`<strong>Juan F. Seguí</strong> (-105%, -$132M) · <strong>Solano López</strong> (-61%, -$41M) · <strong>Echeverría</strong> (-42%, -$13M) · <strong>O'Higgins</strong> (-11%, -$6M) · <strong>Barrio 20</strong> (-1%, -$12M). Déficit total: <strong>-$204M</strong>. Nota: Autódromo INMAC consolidado con COARCO + Triturado pasa a margen +19% (+$93M).`},
+    {tipo:'critico',titulo:'Hospitales GCBA — AF $278M sin cobrar',body:`Los 4 hospitales (Muñiz, Durand, Pirovano, Ramos Mejía) tienen Anticipos Financieros por <strong>$278.52M</strong> que están proyectados en junio-26 pero <strong>aún no fueron cobrados</strong>. Si el GCBA no aprueba el AF antes de fin de julio, junio pasa de ser superávit a déficit. Acción urgente en gestión de cobranza.`},
+    {tipo:'urgente',titulo:'IREP GCBA — BED $578M en Agosto',body:`El BED de <strong>$577.65M</strong> representa el 40% del ingreso total de IREP ($1.452B) y se concentra en un solo mes. Un retraso de 60 días lo desplaza a octubre-26, afectando el flujo de dos meses. Verificar si tiene hito contractual firme o es estimación. Responsable: Gustavo Singman + Cristian Linares.`},
+    {tipo:'urgente',titulo:'Autódromo — Cambio de perspectiva al consolidar',body:`<strong>Antes:</strong> INMAC -11% (-$39.5M pérdida). <strong>Ahora consolidado:</strong> INMAC + COARCO + Triturado = <strong style="color:#16a34a">+19% (+$93M)</strong>. Los gastos ($390.8M) están todos asignados al contrato INMAC, mientras los ingresos COARCO ($49.55M) y Triturado ($82.93M) figuraban por separado. Confirmar si esta consolidación es correcta operativamente.`},
+    {tipo:'urgente',titulo:'15 Obras sin Gastos — $3.800M+ sin costear',body:`Tras consolidar COARCO y Triturado, quedan <strong>13 obras con $0 en gastos</strong>, incluyendo <strong>Pedro Goyena $550M</strong> (el más crítico), AV La Plata $159M, Orebin $77M y otras. El margen global del 26.5% está sobrestimado si estas obras tienen costos no cargados. Ver tab "Sin Gastos" para detalle.`},
+    {tipo:'mejora',titulo:'IronMountain — Margen 78% requiere validación',body:`Incendio Ezeiza: Ventas <strong>$778M</strong> vs Gastos <strong>$173M</strong> = <strong style="color:#16a34a">+$605M (78%)</strong>. Es el contrato más rentable del portfolio pero el margen es inusual para demolición. Verificar si faltan categorías de gasto (disposición especial, certificaciones ambientales, subcontratistas). Responsable: Dikran Hurmuz.`},
+    {tipo:'mejora',titulo:'Barrio 20 — Costo Máquina $630M dominante',body:`$630M en Costo Máquina = 62% de los gastos totales de la obra ($1.020B). Con ventas de $1.008B el margen es <strong>-$12M (-1%)</strong>. Si el Costo Máquina es una tasa interna y no un costo de caja real, la obra podría ser rentable en términos de flujo. Definir metodología de asignación con Dikran Hurmuz.`},
+    {tipo:'mejora',titulo:'Motores de rentabilidad del portfolio',body:`IronMountain (+$605M, 78%), Silos Rosario (+$381M, 21%), Cementerio E4 (+$234M, 34%), IREP (+$300M, 21%), Hospital Muñiz (+$209M, 25%) y PMP (+$308M, 14%) concentran el 62% del margen total. Proteger estos contratos es prioridad estratégica.`},
+  ];
+  document.getElementById('tab-desvios').innerHTML=`<div class="devs-grid">${desvios.map(d=>`<div class="dev-card ${d.tipo}"><div class="dev-header"><div class="dev-title">${d.titulo}</div><span class="dev-lbl ${d.tipo}">${d.tipo.toUpperCase()}</span></div><div class="dev-body">${d.body}</div></div>`).join('')}</div>`;
+}
+
+// ===================== TAB SIN GASTOS =====================
+function renderSinGastos(obras){
+  const sinG=[...obras].filter(o=>o.totalGastos===0&&o.totalVentas>0).sort((a,b)=>b.totalVentas-a.totalVentas);
+  const totalSinG=sinG.reduce((s,o)=>s+o.totalVentas,0);
+  const totalVentas=obras.reduce((s,o)=>s+o.totalVentas,0);
+  if(sinG.length===0){
+    document.getElementById('tab-singastos').innerHTML=`<div style="text-align:center;padding:60px;color:var(--green);font-size:18px;font-weight:600">✅ Todas las obras tienen gastos asignados en este filtro</div>`;
+    return;
+  }
+  const cards=sinG.map(o=>{
+    const activos=MESES.map((m,i)=>Object.values(o.ventas).some(a=>(a[i]||0)>0)?m:null).filter(Boolean);
+    const tipos=Object.keys(o.ventas).join(' · ');
+    const nivel=o.totalVentas>=100?'alto':o.totalVentas>=30?'medio':'bajo';
+    const nivelLabel=nivel==='alto'?'🔴 Alto impacto':nivel==='medio'?'🟡 Impacto medio':'⚪ Impacto bajo';
+    const nota=o.nota?`<div style="font-size:10px;color:#78350f;background:#fef9ec;border:1px solid #fde68a;border-radius:5px;padding:5px 8px;margin-bottom:7px">📌 ${o.nota}</div>`:'';
+    return`<div class="singas-card" onclick="(function(){document.getElementById('selObra').value='${o.nombre.replace(/'/g,"\\'")}';onObraChange();document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));document.querySelector('.tab.active')&&void 0;let t=document.querySelector('[onclick*=\\'resumen\\']');if(t){t.classList.add('active');document.getElementById('tab-resumen').classList.add('active');}})()">
+      <div class="singas-head">
+        <div style="flex:1;min-width:0">
+          <div class="singas-name">${o.nombre}</div>
+          <div class="singas-cod">${o.codigo} · ${o.tipo}</div>
+        </div>
+        <div class="singas-monto">${fmt(o.totalVentas)}</div>
+      </div>
+      ${nota}
+      <div class="singas-alert">⚠️ Sin presupuesto de gastos — margen real desconocido</div>
+      <div style="font-size:11px;color:var(--muted);margin:7px 0 8px">
+        <strong>Período:</strong> ${activos.join(', ')} &nbsp;·&nbsp; <strong>Tipo:</strong> ${tipos}
+      </div>
+      <div class="singas-footer">
+        <span class="singas-risk ${nivel}">${nivelLabel}</span>
+        <span style="font-size:10px;color:var(--accent)">Ver en dashboard →</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('tab-singastos').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Obras sin gastos</div>
+        <div style="font-size:28px;font-weight:800;color:#dc2626">${sinG.length}</div>
+        <div style="font-size:11px;color:var(--muted)">de ${obras.length} obras en el filtro</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Ventas sin costear</div>
+        <div style="font-size:28px;font-weight:800;color:#d97706">${fmt(totalSinG)}</div>
+        <div style="font-size:11px;color:var(--muted)">${(totalSinG/totalVentas*100).toFixed(1)}% del portfolio total</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Margen sobreestimado</div>
+        <div style="font-size:28px;font-weight:800;color:#64748b">?</div>
+        <div style="font-size:11px;color:var(--muted)">Sin costos, el 26.5% puede ser menor</div>
+      </div>
+    </div>
+    <div style="background:rgba(220,38,38,.05);border:1px solid rgba(220,38,38,.2);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#7f1d1d;line-height:1.5">
+      <strong>⚠️ Atención:</strong> Las siguientes obras tienen ventas proyectadas pero <strong>ningún gasto cargado</strong>. Es imposible calcular su rentabilidad real. Algunos pueden ser contratos de bajo costo (totalmente tercerizados), pero otros — como <strong>Pedro Goyena $550M</strong> — necesitan presupuesto urgente. Click en cada tarjeta para ver la obra en el dashboard.
+    </div>
+    <div class="singas-grid">${cards}</div>`;
+}
+
+// ===================== TAB PREGUNTAS =====================
+function renderPreguntas(){
+  function pregCard(opts){
+    const {obra,codigo,tipo,ventas,gastos,margenPct,urgencia,nota,preguntas,colorMrg}=opts;
+    const urgTag=`<span class="urgency-tag ${urgencia}">${urgencia.toUpperCase()}</span>`;
+    const notaHtml=nota?`<div class="preg-nota">📌 ${nota}</div>`:'';
+    const pItems=preguntas.map(p=>`
+      <div class="preg-item ${p.nivel||''}">
+        <div class="preg-q">P${p.n}. ${p.q}</div>
+        <div class="preg-why">${p.why}</div>
+        <div class="preg-tags">
+          ${urgTag}
+          ${p.resp.map(r=>`<span class="resp-chip ${r.cls}" title="${r.nombre}">${r.icon} ${r.nombre}</span>`).join('')}
+        </div>
+      </div>`).join('');
+    return`<div class="preg-card">
+      <div class="preg-head">
+        <div>
+          <div class="preg-obra-name">${obra}</div>
+          <div class="preg-obra-meta">${codigo} · ${tipo}</div>
+        </div>
+        <div class="preg-kpis">
+          <div class="preg-kpi"><div class="pk-lbl">Ventas</div><div class="pk-val" style="color:#2563eb">${ventas}</div></div>
+          ${gastos?`<div class="preg-kpi"><div class="pk-lbl">Gastos</div><div class="pk-val" style="color:#64748b">${gastos}</div></div>`:''}
+          ${margenPct!==undefined?`<div class="preg-kpi"><div class="pk-lbl">Margen</div><div class="pk-val" style="color:${colorMrg||'#16a34a'}">${margenPct}</div></div>`:''}
+        </div>
+      </div>
+      <div class="preg-body">${notaHtml}${pItems}</div>
+    </div>`;
+  }
+  const LINARES={icon:'📐',nombre:'C. Linares',cls:'plan'};
+  const HURMUZ={icon:'🏗',nombre:'D. Hurmuz',cls:'prod'};
+  const SINGMAN={icon:'💰',nombre:'G. Singman',cls:'fin'};
+  const BONNES={icon:'📋',nombre:'J. Bonnes',cls:'admin'};
+
+  const html=`
+  <div class="preg-intro">
+    <strong>Cómo usar esta sección:</strong> Cada bloque corresponde a una obra con datos que requieren validación o decisión ejecutiva. Las preguntas están ordenadas por impacto financiero. Los chips de color indican el gerente que debe responder con prioridad — <span class="resp-chip plan" style="display:inline">📐 Planeamiento</span> · <span class="resp-chip prod" style="display:inline">🏗 Producción</span> · <span class="resp-chip fin" style="display:inline">💰 G. Singman (Finanzas)</span> · <span class="resp-chip admin" style="display:inline">📋 J. Bonnes (Admin)</span>. Los niveles de prioridad son: <span class="urgency-tag critico" style="display:inline">CRÍTICO</span> acción en ≤1 semana · <span class="urgency-tag urgente" style="display:inline">URGENTE</span> en ≤30 días · <span class="urgency-tag seguimiento" style="display:inline">SEGUIMIENTO</span> en el trimestre.
+  </div>
+
+  ${pregCard({obra:'IREP — Instituto de Rehabilitación del Psiquiátrico (GCBA)',codigo:'440DEM0625',tipo:'Demolición',ventas:'$1,451.63M',gastos:'$1,151.80M',margenPct:'+21%',colorMrg:'#16a34a',urgencia:'critico',
+    nota:'El BED de agosto-26 ($577.65M) representa el 40% del ingreso anual de IREP. Un desvío en su cobro es el mayor riesgo de flujo de caja del portfolio.',
+    preguntas:[
+      {n:1,nivel:'critico',q:'¿El BED de $577.65M en agosto-26 tiene hito contractual firme o es una estimación de fecha de cobro?',why:'Si se demora 60 días, agosto pasa de +$443M a -$133M de flujo. Impacto: potencial necesidad de financiamiento de $133M+.',resp:[LINARES,SINGMAN]},
+      {n:2,nivel:'critico',q:'¿Cuál es el plazo habitual de cobro del GCBA para el BED una vez certificado? ¿30, 60, 90 días?',why:'La proyección trata el cobro como simultáneo a la certificación. Si hay demora estructural, todos los meses están desplazados en el flujo real.',resp:[SINGMAN,BONNES]},
+      {n:3,nivel:'urgente',q:'El BED aparece por primera vez en agosto-26. ¿Depende de un hito físico de obra (% de avance) o es automático al cumplir una fecha?',why:'Si depende de un hito físico, el riesgo aumenta: un retraso en la ejecución desplaza el cobro. Entender el driver permite anticipar alertas.',resp:[LINARES]},
+      {n:4,nivel:'seguimiento',q:'¿IREP tiene cláusula de redeterminación de precios? Los gastos incluyen mano de obra y compras durante Oct-26.',why:'Con gastos de $1.15B en 8 meses, una actualización de precios puede afectar el margen del 21% actual.',resp:[LINARES,SINGMAN]},
+    ]})}
+
+  ${pregCard({obra:'Hospitales GCBA (Muñiz + Durand + Pirovano + Ramos Mejía)',codigo:'Varios S/N',tipo:'Civil',ventas:'$1,433.81M',gastos:'$1,052.92M',margenPct:'+27%',colorMrg:'#16a34a',urgencia:'critico',
+    nota:'Los Anticipos Financieros (AF) de los 4 hospitales suman $278.52M y AÚN NO FUERON COBRADOS. Están proyectados como ingreso de junio-26 pero el GCBA no los ha aprobado.',
+    preguntas:[
+      {n:1,nivel:'critico',q:'¿Cuál es el estado actual de los AF de Muñiz ($170.6M), Durand ($40.2M), Pirovano ($28.2M) y Ramos Mejía ($39.7M)? ¿Hay alguna gestión activa con el GCBA?',why:'$278.52M proyectados en junio-26 como cobrados. Si no se cobran antes de julio, el flujo de junio cae de +$380M a +$102M. Si se postergan a agosto, agrava el déficit de ese mes.',resp:[SINGMAN,BONNES]},
+      {n:2,nivel:'critico',q:'¿Cuál es el plazo estimado para la aprobación del AF por parte del GCBA? ¿Hay antecedentes de demoras en anticipos similares?',why:'Si el historial del GCBA muestra demoras de 60-90 días en la aprobación de AF, la proyección de flujo de junio-julio está significativamente sobreestimada.',resp:[SINGMAN,BONNES]},
+      {n:3,nivel:'urgente',q:'El Costo Máquina de Hospital Muñiz es $196M (30% del gasto total de $644M). ¿Los equipos están asignados a tiempo completo en Muñiz o comparten con otras obras?',why:'Una asignación incorrecta de Costo Máquina puede inflar los gastos de Muñiz y mejorar artificialmente otras obras que usan las mismas máquinas.',resp:[HURMUZ]},
+      {n:4,nivel:'seguimiento',q:'¿Los contratos de hospitales tienen cláusulas de actualización de precios? ¿O están fijados en pesos a valor actual?',why:'Con gastos en un período de alta inflación, un contrato a precio fijo en pesos puede erosionar el margen del 27% actual.',resp:[LINARES,SINGMAN]},
+    ]})}
+
+  ${pregCard({obra:'Edificio del Plata — PMP',codigo:'S/N',tipo:'Sin Clasificar',ventas:'$2,247.53M',gastos:'$1,939.74M',margenPct:'+14%',colorMrg:'#d97706',urgencia:'urgente',
+    nota:'La obra más grande del portfolio (18% de las ventas totales). Margen de 14% es bajo para el volumen. Los gastos persisten en Feb-27 cuando los ingresos caen.',
+    preguntas:[
+      {n:1,nivel:'urgente',q:'El margen de PMP es 14% sobre $2.247B — ¿hay adicionales en negociación que puedan mejorar este número? ¿Se proyectan redeterminaciones de precio?',why:'Con $308M de margen absoluto, PMP es el segundo motor de rentabilidad. Cualquier adicional tendría impacto significativo.',resp:[LINARES,SINGMAN]},
+      {n:2,nivel:'urgente',q:'En Feb-27 los ingresos de PMP caen a $148.86M mientras los gastos son $87M. ¿Estos certificados de Feb-27 están confirmados contractualmente?',why:'Si PMP termina en enero-27, febrero queda sin ingresos pero con gastos, convirtiendo el déficit de Feb-27 en mucho mayor.',resp:[LINARES,SINGMAN]},
+      {n:3,nivel:'urgente',q:'El Costo Máquina de PMP es ~$50M/mes durante 10 meses ($520M total). ¿Qué equipos son y están disponibles los 10 meses? ¿No hay conflicto con Silos Rosario (que también requiere maquinaria de julio a diciembre)?',why:'Si los mismos equipos están asignados a PMP y Silos simultáneamente en julio-diciembre-26, hay un conflicto de recursos que invalida la proyección de costos de ambas obras.',resp:[HURMUZ]},
+      {n:4,nivel:'seguimiento',q:'¿PMP tiene el código de obra S/N? ¿Esta obra no tiene código asignado o fue un dato omitido en la planilla?',why:'Sin código, es difícil hacer trazabilidad con otros sistemas. Confirmar si es una obra en proceso de formalización.',resp:[LINARES,BONNES]},
+    ]})}
+
+  ${pregCard({obra:'Silos Rosario',codigo:'S/N',tipo:'Sin Clasificar',ventas:'$1,850M',gastos:'$1,469.09M',margenPct:'+21%',colorMrg:'#16a34a',urgencia:'urgente',
+    nota:'Arranca en julio-26 con certificados de $247M/mes por 6 meses. El Costo Máquina ($94.46M/mes) es el segundo más alto del portfolio.',
+    preguntas:[
+      {n:1,nivel:'urgente',q:'El ingreso de mayo-26 es un AF de $370M. ¿Este anticipo financiero ya fue cobrado o está pendiente como los AF de hospitales?',why:'Si el AF de Silos está pendiente, el flujo de mayo-26 (ya deficitario en $632M) empeora en $370M adicionales. Es el dato de mayor impacto potencial.',resp:[SINGMAN,BONNES]},
+      {n:2,nivel:'urgente',q:'Silos arranca en julio-26 con $247M/mes por 6 meses. ¿El inicio está confirmado con acta de inicio firmada? ¿Hay condiciones previas pendientes?',why:'Un mes de retraso en Silos es $247M menos de flujo. Dada la dependencia del portfolio en Silos (15% del total), la confirmación es crítica.',resp:[LINARES]},
+      {n:3,nivel:'urgente',q:'El Costo Máquina de Silos es $94.46M/mes ($660M total en 6 meses). ¿Qué equipos están asignados? ¿Coincide con el período de uso de máquinas en PMP?',why:'Silos (jul-dic-26) se superpone con PMP (may-oct-26). Si son los mismos equipos, hay doble asignación de costos o conflicto de disponibilidad física.',resp:[HURMUZ]},
+      {n:4,nivel:'seguimiento',q:'¿Silos Rosario tiene contrato de actualización de precios que ajuste los $247M/mes? ¿La moneda del contrato es pesos o dólares?',why:'6 meses de ejecución sin ajuste puede erosionar el margen del 21%. Si el contrato es en dólares, la proyección en pesos requiere un tipo de cambio supuesto.',resp:[LINARES,SINGMAN]},
+    ]})}
+
+  ${pregCard({obra:'Infraestructura Barrio 20 — IVC',codigo:'420INFRA1224',tipo:'Infraestructura',ventas:'$1,008.42M',gastos:'$1,019.93M',margenPct:'-1%',colorMrg:'#dc2626',urgencia:'critico',
+    nota:'Pérdida de $11.51M. El Costo Máquina domina con $630M (62% del gasto). La metodología de asignación de máquina es la clave para entender si es pérdida real o contable.',
+    preguntas:[
+      {n:1,nivel:'critico',q:'El Costo Máquina es $210M/mes por 3 meses ($630M = 62% del gasto total). ¿Cómo se calcula este costo? ¿Es una tasa de alquiler interno, depreciación, o costo real de caja?',why:'Si el costo de máquina es una transferencia interna (no implica salida de caja), el flujo real de Barrio 20 es positivo. Si es costo real, la obra pierde $11.5M. La decisión metodológica importa.',resp:[HURMUZ,SINGMAN]},
+      {n:2,nivel:'critico',q:'¿Hay adicionales o redeterminaciones en gestión con IVC que puedan cerrar el déficit de $11.5M?',why:'Con un margen de -1%, un adicional del 1.5% sobre ventas alcanza para pasar a positivo. Si hay DEMASÍA o ADICIONAL en negociación, el timing de cobro es urgente.',resp:[LINARES,SINGMAN]},
+      {n:3,nivel:'urgente',q:'Los gastos de Barrio 20 terminan en julio-26 pero los ingresos de la obra ya terminaron en agosto-26. ¿La obra está completada físicamente?',why:'Si la obra está terminada y se facturó todo, el resultado es el que es. Si hay trabajos adicionales pendientes sin certificar, puede haber ingresos no registrados.',resp:[LINARES,HURMUZ]},
+    ]})}
+
+  ${pregCard({obra:'Juan Francisco Seguí 3947 — ZAS',codigo:'479DEM0426',tipo:'Demolición',ventas:'$126.0M',gastos:'$257.98M',margenPct:'-105%',colorMrg:'#dc2626',urgencia:'critico',
+    nota:'Mayor pérdida del portfolio en términos porcentuales. Gastos de $258M vs ingresos de $126M. Los módulos ($27.3M) y fletes ($51.5M) son desproporcionados para el volumen de la obra.',
+    preguntas:[
+      {n:1,nivel:'critico',q:'¿La pérdida de $132M fue conocida al momento de cotizar o es resultado de un desvío de costos durante la ejecución?',why:'Si fue prevista, es una decisión estratégica (pérdida líder para ganar cliente, obra de rescate, etc.) y debe aparecer como tal. Si es un desvío no previsto, es una señal de alerta en el proceso de cotización.',resp:[LINARES]},
+      {n:2,nivel:'critico',q:'Los módulos suman $27.3M y los fletes $51.5M — desproporcionados para una obra de $126M. ¿Estos costos son correctos? ¿Los módulos y máquinas no deberían estar asignados a otra obra del período?',why:'Si hay un error de asignación de costos (módulos o máquinas de otra obra cargados en Seguí), la pérdida real podría ser menor.',resp:[HURMUZ]},
+      {n:3,nivel:'critico',q:'¿Hay adicionales, reclamos por trabajos extra o redeterminaciones en gestión con ZAS que puedan reducir el déficit?',why:'Sin ingresos adicionales, la pérdida es definitiva. Saber si hay algo en negociación define si se puede actuar o si el resultado está cerrado.',resp:[LINARES,SINGMAN]},
+      {n:4,nivel:'urgente',q:'La obra proyecta gastos en junio, julio y agosto-26. ¿Se puede reducir el alcance o adelantar el cierre para limitar la pérdida acumulada?',why:'Cada mes adicional de obra suma $56M en costos. Si se puede terminar antes, la pérdida total se acota.',resp:[HURMUZ,BONNES]},
+    ]})}
+
+  ${pregCard({obra:'Autódromo Gálvez — INMAC + COARCO + TRITURADO (consolidado)',codigo:'465/467/472',tipo:'Demolición',ventas:'$483.79M',gastos:'$390.8M',margenPct:'+19%',colorMrg:'#16a34a',urgencia:'urgente',
+    nota:'ANTES: INMAC solo mostraba -11% (-$39.5M de pérdida). Al consolidar con COARCO ($49.55M) y Triturado ($82.93M) del mismo sitio físico, el resultado es +19% (+$93M). Cambio radical en la lectura del contrato.',
+    preguntas:[
+      {n:1,nivel:'urgente',q:'¿La consolidación de INMAC + COARCO + Triturado es correcta? ¿Los 3 contratos son con el mismo cliente o con clientes distintos?',why:'Si son contratos independientes con clientes distintos, los gastos deben distribuirse entre ellos. Si son con el mismo cliente (o subcontratos), la consolidación es válida y INMAC pasa de pérdida a ganancia.',resp:[LINARES,HURMUZ]},
+      {n:2,nivel:'urgente',q:'¿Los recursos (maquinaria $60M, personal $70M) están asignados únicamente al contrato INMAC? ¿COARCO y Triturado comparten esos mismos recursos?',why:'Si comparten recursos y el costo está solo en INMAC, el costo real por contrato está distorsionado. Cada uno debería cargar su parte proporcional.',resp:[HURMUZ]},
+      {n:3,nivel:'seguimiento',q:'¿Hay otros contratos relacionados al Autódromo Gálvez que no estén en la proyección actual?',why:'Si existen más contratos de la misma licitación sin cargar, el resultado consolidado puede ser aún diferente.',resp:[LINARES]},
+    ]})}
+
+  ${pregCard({obra:'Incendio Ezeiza — IronMountain',codigo:'477DEM0326',tipo:'Demolición',ventas:'$777.74M',gastos:'$172.91M',margenPct:'+78%',colorMrg:'#16a34a',urgencia:'urgente',
+    nota:'Margen de 78% es excepcional e inusual para demolición. Requiere validación urgente antes de tomar decisiones basadas en este resultado.',
+    preguntas:[
+      {n:1,nivel:'urgente',q:'¿Los gastos de $172.9M están completos? ¿Hay costos de disposición especial de residuos del incendio, certificaciones ambientales, tratamiento de agua, o limpieza de suelo contaminado?',why:'Un incendio de magnitud como el de IronMountain suele implicar costos ambientales especiales. Si faltan esas categorías, el margen real puede ser significativamente menor.',resp:[HURMUZ]},
+      {n:2,nivel:'urgente',q:'¿Hay subcontratistas especializados (manejo de materiales peligrosos, apuntalamientos, seguros) cuyo costo no está en la planilla?',why:'Compras=$3.5M y Sueldos=$102M para $778M de obra parece bajo. En demolición de incendio con 3 meses de trabajo, se esperan más costos de terceros.',resp:[HURMUZ,SINGMAN]},
+      {n:3,nivel:'seguimiento',q:'¿El precio del contrato fue acordado en dólares o pesos? ¿Hay cláusula de ajuste?',why:'Un contrato en dólares a jun-26 tiene riesgo cambiario en la facturación en pesos. Un contrato en pesos a precio fijo podría estar subfacturando.',resp:[SINGMAN]},
+    ]})}
+
+  ${pregCard({obra:'Pedro Goyena 655 — Portland',codigo:'S/N',tipo:'Sin Clasificar',ventas:'$550M',gastos:null,margenPct:'N/D',colorMrg:'#64748b',urgencia:'critico',
+    nota:'Obra de $550M SIN NINGÚN GASTO CARGADO. Es la brecha más grande del portfolio — sin presupuesto, no es posible saber si esta obra es rentable o no.',
+    preguntas:[
+      {n:1,nivel:'critico',q:'¿Los costos de Pedro Goyena están en otra planilla o la obra aún no tiene presupuesto definido?',why:'$550M sin costos es el mayor driver de incertidumbre del margen global. Si tiene costos reales y el margen es bajo, el 26.5% del portfolio cae.',resp:[LINARES,HURMUZ]},
+      {n:2,nivel:'critico',q:'¿El inicio de obra en junio-26 está confirmado por Portland? ¿Hay permisos, liberaciones de terreno u otras condiciones previas pendientes?',why:'Si la obra no arranca en junio, $550M de ingresos se desplazan. Con eso, el flujo de junio-agosto cae significativamente.',resp:[LINARES]},
+      {n:3,nivel:'urgente',q:'Los $550M incluyen AF del inicio del contrato o son puro certificado de obra?',why:'Saber si hay un anticipo permite entender si parte de estos ingresos ya fue cobrado (y ajustar la proyección de flujo) o si todo depende de la ejecución futura.',resp:[SINGMAN,BONNES]},
+    ]})}
+
+  ${pregCard({obra:'Remoción Asbesto — AUBASA',codigo:'469DEM0226',tipo:'Demolición',ventas:'$179M',gastos:'$161.1M',margenPct:'+10%',colorMrg:'#d97706',urgencia:'urgente',
+    nota:'100% de los gastos son Fletes ($80.55M/mes × 2 meses). No hay mano de obra, disposición final ni costos de especialista en asbesto registrados.',
+    preguntas:[
+      {n:1,nivel:'urgente',q:'¿No hay costos de mano de obra especializada en manejo de asbesto, EPP certificado, análisis ambientales previos ni disposición final en el presupuesto?',why:'El manejo de asbesto requiere personal certificado, equipamiento especial y disposición en sitios habilitados por ley. Si estos costos no están en la planilla, el margen real puede ser negativo.',resp:[HURMUZ]},
+      {n:2,nivel:'urgente',q:'¿La disposición final del asbesto está incluida en el costo de fletes ($161M) o es un costo de terceros a cargo de AUBASA?',why:'Si la disposición es a cargo de AUBASA (no de Mitre), el costo de flete puede ser correcto. Si es a cargo de Mitre, hay costos adicionales significativos no cargados.',resp:[HURMUZ,SINGMAN]},
+    ]})}
+
+  ${pregCard({obra:'Obras sin Gastos — 13 contratos (tras consolidación)',codigo:'Varios',tipo:'Mixto',ventas:'~$900M',gastos:null,margenPct:'N/D',colorMrg:'#64748b',urgencia:'urgente',
+    nota:'Tras incorporar COARCO y Triturado a INMAC, quedan 13 obras con ventas proyectadas y $0 en gastos. AV La Plata ($159.56M), Orebin ($76.61M) y CEMENTERIO FLORES E3 ($19.36M) son las más urgentes después de Pedro Goyena.',
+    preguntas:[
+      {n:1,nivel:'urgente',q:'¿Las obras sin gastos son contratos donde los costos son mínimos (tercerización total, sin recursos de Mitre) o hay datos pendientes de carga?',why:'Si hay costos reales no cargados en 13 obras que representan ~$900M en ventas, el margen global del 26.5% puede estar significativamente sobreestimado.',resp:[SINGMAN,BONNES]},
+      {n:2,nivel:'urgente',q:'¿AV La Plata 2255 ($159.56M en Legítimo Abono de julio-26) tiene presupuesto de obra definido? ¿Cuándo se puede cargar en la planilla?',why:'Con $159M y ejecución en julio, es prioritario tener el costo antes de que empiece la obra para monitorear el margen en tiempo real.',resp:[LINARES,HURMUZ]},
+      {n:3,nivel:'seguimiento',q:'¿Hay un plazo definido para completar los presupuestos de las 13 obras restantes? ¿Quién es el responsable de carga?',why:'Sin fecha, las obras seguirán apareciendo como "sin gastos" y el dashboard no reflejará la realidad financiera del portfolio.',resp:[BONNES,SINGMAN]},
+    ]})}`;
+
+  document.getElementById('tab-preguntas').innerHTML=html;
+}
+
+// ===================== TAB PLAN DE ACCIÓN =====================
+function renderPlanAccion(){
+  function planItem(prioridad,emoji,titulo,detalle,quien,cuando,impacto){
+    return`<div class="plan-item">
+      <div class="plan-item-head">
+        <div class="plan-item-title">${emoji} ${titulo}</div>
+        <span class="urgency-tag ${prioridad==='Alta'?'critico':prioridad==='Media'?'urgente':'seguimiento'}">${prioridad}</span>
+      </div>
+      <div class="plan-item-meta">${detalle}</div>
+      <div class="plan-item-footer">
+        <span class="plan-chip quien">👤 ${quien}</span>
+        <span class="plan-chip cuando">📅 ${cuando}</span>
+        <span class="plan-chip impacto">💡 ${impacto}</span>
+      </div>
+    </div>`;
+  }
+  function seccion(nivel,titulo,items){
+    return`<div class="plan-seccion">
+      <div class="plan-seccion-title ${nivel.toLowerCase()}">🎯 ${titulo}</div>
+      ${items.join('')}
+    </div>`;
+  }
+  document.getElementById('tab-planaccion').innerHTML=`
+    <div style="background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.2);border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:12px;line-height:1.6">
+      <strong>Plan de Acción — Proyecciones Grupo Mitre · Mayo 2026</strong><br>
+      Organizado por urgencia. Los equipos responsables deben dar respuesta antes de la próxima revisión de proyecciones.
+      <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">
+        <span style="font-size:11px"><span class="urgency-tag critico" style="display:inline">ALTA</span> ≤ 1 semana</span>
+        <span style="font-size:11px"><span class="urgency-tag urgente" style="display:inline">MEDIA</span> ≤ 30 días</span>
+        <span style="font-size:11px"><span class="urgency-tag seguimiento" style="display:inline">BAJA</span> Trimestre</span>
+      </div>
+    </div>
+
+    ${seccion('Alta','PRIORIDAD ALTA — Acción en menos de 1 semana',[
+      planItem('Alta','🚨','Confirmar cobro de AF Hospitales GCBA ($278.52M)','Los AF de Muñiz ($170.6M), Durand ($40.2M), Pirovano ($28.2M) y Ramos Mejía ($39.7M) están proyectados como cobrados en junio-26 pero AÚN NO FUERON PERCIBIDOS. Sin esta gestión, el flujo de junio baja $278M.','G. Singman + J. Bonnes','Inmediato','Impacto: ±$278M en flujo Jun-26'),
+      planItem('Alta','⚡','Validar BED de IREP agosto-26 ($577.65M)','Confirmar si el BED tiene hito contractual firme. Si es estimación, construir escenario alternativo. Un desvío de 60 días afecta dos meses consecutivos de flujo.','C. Linares + G. Singman','Esta semana','Impacto: ±$577M en flujo Ago-26'),
+      planItem('Alta','💰','Plan de liquidez para Mayo-26 (-$631.9M)','El primer mes de operación tiene déficit de $631.9M. Identificar fuentes: anticipos de obra, líneas de crédito, cobranzas aceleradas. El AF de Silos ($370M) debe confirmarse si ya fue cobrado.','G. Singman + J. Bonnes','Esta semana','Impacto: cubrir déficit operativo de Mayo-26'),
+      planItem('Alta','📊','Completar presupuesto de Pedro Goyena 655 ($550M)','La obra más grande sin gastos. Antes del inicio en junio-26, necesita presupuesto aprobado para monitorear margen en tiempo real.','C. Linares + D. Hurmuz','Antes del 31/05','Impacto: visibilidad sobre margen de $550M en ventas'),
+    ])}
+
+    ${seccion('Media','PRIORIDAD MEDIA — Acción en los próximos 30 días',[
+      planItem('Media','🔍','Auditar margen de IronMountain (78%, $604M)','Verificar que los gastos de $172.9M estén completos: costos de disposición ambiental, subcontratistas especializados, certificaciones. Si faltan categorías, el margen real es menor.','D. Hurmuz + G. Singman','Antes del 15/06','Impacto: corrección de hasta ~$200M en margen estimado'),
+      planItem('Media','⚙️','Definir metodología de asignación de Costo Máquina','¿Es tasa de alquiler interno, depreciación, o costo real de caja? La metodología impacta en todos los márgenes de obra. Barrio 20 y los hospitales son los más sensibles.','D. Hurmuz + G. Singman (CFO)','Antes del 15/06','Impacto: reexpresión del margen de 12+ obras'),
+      planItem('Media','⚠️','Revisar viabilidad de Juan F. Seguí (-105%, -$132M)','Con pérdida de $132M, evaluar 3 opciones: (a) adicionales en negociación, (b) reducción de alcance, (c) cierre anticipado. Cada mes adicional suma ~$56M en costos.','C. Linares + D. Hurmuz','Antes del 01/06','Impacto: limitar pérdida acumulada en Seguí'),
+      planItem('Media','📋','Completar gastos de 12 obras restantes sin presupuesto','AV La Plata ($159M), Orebin ($77M), CEMENTERIO FLORES E3 ($19M) y otras 9 obras con ventas proyectadas pero $0 en costos. Priorizar por volumen.','J. Bonnes + Gerentes','Junio 2026','Impacto: visibilidad real sobre margen del portfolio'),
+      planItem('Media','🏗','Verificar disponibilidad de máquinas para PMP + Silos simultáneos','PMP usa máquinas hasta oct-26. Silos arranca en jul-26. Hay 3 meses de superposición. Confirmar que no hay conflicto de flota.','D. Hurmuz','Antes del 15/06','Impacto: $1.15B en gastos de ambas obras dependen de disponibilidad'),
+      planItem('Media','🔗','Confirmar consolidación Autódromo INMAC + COARCO + Triturado','Validar si es correcto consoldar los 3 contratos y si los gastos deben distribuirse. Impacta en el resultado de INMAC (de -11% a +19%).','C. Linares + D. Hurmuz','Antes del 15/06','Impacto: reexpresión de resultado INMAC'),
+      planItem('Media','🏥','Confirmar AF de Silos Rosario ($370M en Mayo-26)','El AF de Silos está proyectado como cobrado en mayo-26. Si aún no fue cobrado, el déficit de Mayo-26 pasa de -$632M a -$1.002B.','G. Singman','Esta semana','Impacto: ±$370M en flujo May-26'),
+    ])}
+
+    ${seccion('Baja','PRIORIDAD BAJA — Acciones estratégicas del trimestre',[
+      planItem('Baja','📈','Análisis de rentabilidad con/sin activos propios (Máquina + Módulo)','Usar el dashboard para ver márgenes excluyendo Costo Máquina y Módulo. Evaluar si el negocio de construcción es rentable sin el subsidio de los activos propios.','CFO + D. Hurmuz','Q3 2026','Impacto: decisión estratégica sobre uso de flota propia vs. alquiler'),
+      planItem('Baja','📅','Planificar flujo de Feb-27 — déficit de -$64.9M','Identificar si hay certificados adelantables o extensiones de contrato para compensar la caída de ingresos de febrero. PMP y Silos terminan antes de ese mes.','C. Linares + G. Singman','Agosto 2026','Impacto: eliminar déficit de Feb-27'),
+      planItem('Baja','🔄','Revisión de contratos Solano López (-61%) y O\'Higgins (-11%)','Dos obras en pérdida de menor magnitud ($41M y $6M). Evaluar si hay adicionales o redeterminaciones posibles.','C. Linares + D. Hurmuz','Junio 2026','Impacto: recuperación potencial de ~$47M en déficit'),
+      planItem('Baja','📊','Estandarizar KPIs de seguimiento mensual de obra','Definir qué indicadores se monitorean cada mes por obra: % de certificado cobrado, margen acumulado, desvío vs presupuesto. Integrar con el dashboard interactivo.','J. Bonnes + G. Singman','Q3 2026','Impacto: mejora continua en gestión del portfolio'),
+    ])}`;
+}
+
+// ===================== RENDER =====================
+function render(){
+  updateChips();const obras=getFiltered();
+  renderObraBanner(activeObra);renderKPIs(obras);
+  renderResumen(obras);renderIngresos(obras);renderGastos(obras);renderMargenes(obras);renderDesvios();
+  renderSinGastos(obras);renderPreguntas();renderPlanAccion();
+}
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');document.getElementById('tab-'+name).classList.add('active');
+}
+populateObraDropdown();render();
+</script>
+</body>
+</html>
